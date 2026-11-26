@@ -1829,7 +1829,7 @@ export function renderModal(modalState, state, syncInfo = null) {
               <div class="sync-step">
                 <span class="sync-step-num">1</span>
                 <div class="sync-step-body">
-                  <strong>Get a free GitHub Sync Token</strong> (only checks <code>gist</code>):
+                  <div><strong>Get a free GitHub Sync Token</strong> (only checks <code>gist</code>):</div>
                   <a class="btn btn-soft btn-xs sync-token-link-btn" href="${esc(GITHUB_TOKEN_CREATE_URL)}" target="_blank" rel="noopener noreferrer">
                     🔑 Create GitHub Token ↗
                   </a>
