@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f1221" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LifeQuest" />
+    <title>LifeQuest — Gamify Your Life</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="ambient-canvas" aria-hidden="true"></canvas>
+    <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+    <div id="fx-floating-layer" aria-hidden="true"></div>
+
+    <div class="sticky-chrome">
+      <header class="top-nav">
+        <div class="top-nav-inner">
+          <button class="brand-btn" data-nav-tab="dashboard" aria-label="LifeQuest Home">
+            <span class="brand-crest" aria-hidden="true">⚔️</span>
+            <span>
+              <span class="brand-name">LifeQuest</span>
+              <span class="brand-tag">Cozy Life RPG</span>
+            </span>
+          </button>
+
+          <nav class="nav-links" aria-label="Primary navigation">
+            <button class="nav-tab is-active" data-nav-tab="dashboard">
+              <span class="nav-ico" aria-hidden="true">🏠</span>
+              <span class="nav-label-full">Dashboard</span>
+              <span class="nav-label-short">Home</span>
+            </button>
+            <button class="nav-tab" data-nav-tab="activities">
+              <span class="nav-ico" aria-hidden="true">📖</span>
+              <span class="nav-label-full">Activities</span>
+              <span class="nav-label-short">Skills</span>
+            </button>
+            <button class="nav-tab" data-nav-tab="stats">
+              <span class="nav-ico" aria-hidden="true">📊</span>
+              <span class="nav-label-full">Time &amp; Stats</span>
+              <span class="nav-label-short">Stats</span>
+            </button>
+            <button class="nav-tab" data-nav-tab="quests">
+              <span class="nav-ico" aria-hidden="true">🏆</span>
+              <span class="nav-label-full">Quests &amp; Boss</span>
+              <span class="nav-label-short">Boss</span>
+              <span class="nav-badge" id="nav-quests-badge" hidden></span>
+            </button>
+            <button class="nav-tab" data-nav-tab="shop">
+              <span class="nav-ico" aria-hidden="true">🪙</span>
+              <span class="nav-label-full">Shop</span>
+              <span class="nav-label-short">Shop</span>
+              <span class="nav-gold-pill" id="nav-gold-pill">0g</span>
+            </button>
+          </nav>
+
+          <div class="nav-utilities">
+            <button class="sync-util-btn" id="sync-status-btn" data-action="open-sync-modal" title="Cloud Sync across PC & Phone" aria-label="Cloud Sync">
+              ☁️ Sync
+            </button>
+            <button class="icon-util-btn" id="sound-toggle-btn" data-action="toggle-sound" title="Toggle sound effects" aria-label="Toggle sound effects">
+              🔊
+            </button>
+            <button class="icon-util-btn" id="theme-toggle-btn" data-action="toggle-theme" title="Toggle dark or light theme" aria-label="Toggle dark or light theme">
+              ☀️
+            </button>
+            <button class="icon-util-btn" data-action="open-backup-modal" title="Backup, import or reset data" aria-label="Data and Backup">
+              💾
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div id="active-timer-mount"></div>
+    </div>
+
+    <main id="app-main" class="app-container" aria-live="polite"></main>
+
+    <div id="modal-mount"></div>
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

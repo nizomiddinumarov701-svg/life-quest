@@ -1,0 +1,17 @@
+{
+  "name": "LifeQuest — Cozy Life RPG",
+  "short_name": "LifeQuest",
+  "description": "Gamify your life: track time on every action, level up skills, battle weekly bosses, and earn Gold for real-life rewards.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1221",
+  "theme_color": "#0f1221",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
