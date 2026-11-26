@@ -24,7 +24,14 @@ import {
   parseImportedJson,
   sanitizeState,
 } from '../src/storage.js';
-import { mergeActiveTimers, mergeStates } from '../src/sync.js';
+import {
+  GIST_FILENAME,
+  buildGistVaultPayload,
+  findLifeQuestGist,
+  mergeActiveTimers,
+  mergeStates,
+  parseGistVaultPayload,
+} from '../src/sync.js';
 
 test('Activity level curve starts at Level 1 and levels up at 150 XP', () => {
   const lv1 = getActivityLevelInfo(0);
@@ -457,4 +464,46 @@ test('Reward Cooldowns lock items for configured hours and unlock cleanly when e
   // 49 hours later -> unlocked!
   const expiredCd = getRewardCooldownInfo(energyDrink, redemptions, now + 47 * 3600000);
   assert.equal(expiredCd.onCooldown, false);
+});
+
+test('GitHub Gist Sync round-trips vault payload and auto-discovers the latest private Gist', () => {
+  const sample = createSampleAdventureState();
+  const timer = { activityId: sample.activities[0].id, isRunning: true, startedAt: Date.now(), accumulatedMs: 0, mode: 'sprint', targetSeconds: 1500, sprintCompleted: false, note: 'GitHub Pages test' };
+  const content = buildGistVaultPayload({
+    version: 7,
+    state: sample,
+    activeTimer: timer,
+    activeTimerUpdatedAt: 123456789,
+  });
+
+  const gistObj = {
+    id: 'gist_abc123',
+    updated_at: '2026-11-26T16:00:00Z',
+    files: {
+      [GIST_FILENAME]: { content, truncated: false },
+    },
+  };
+
+  const parsed = parseGistVaultPayload(gistObj);
+  assert.equal(parsed.needsRawFetch, false);
+  assert.equal(parsed.version, 7);
+  assert.equal(parsed.state.sessions.length, sample.sessions.length);
+  assert.equal(parsed.activeTimer.note, 'GitHub Pages test');
+  assert.equal(parsed.activeTimerUpdatedAt, 123456789);
+
+  // Truncated gist signals raw fetch
+  const trunc = parseGistVaultPayload({
+    id: 'gist_big',
+    files: { [GIST_FILENAME]: { truncated: true, raw_url: 'https://gist.githubusercontent.com/raw/big' } },
+  });
+  assert.equal(trunc.needsRawFetch, true);
+  assert.equal(trunc.rawUrl, 'https://gist.githubusercontent.com/raw/big');
+
+  // Auto-discovery ignores unrelated gists and picks most recently updated LifeQuest gist
+  const found = findLifeQuestGist([
+    { id: 'other', updated_at: '2026-11-26T20:00:00Z', files: { 'notes.md': {} } },
+    { id: 'older', updated_at: '2026-11-25T10:00:00Z', files: { [GIST_FILENAME]: {} } },
+    { id: 'newest', updated_at: '2026-11-26T18:00:00Z', files: { [GIST_FILENAME]: {} } },
+  ]);
+  assert.equal(found.id, 'newest');
 });

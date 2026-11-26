@@ -18,6 +18,7 @@ import {
   getRewardCooldownInfo,
 } from './rpgEngine.js';
 import { renderAttributeRadarSvg, renderTimeDonutSvg, renderWeeklyBarsSvg } from './charts.js';
+import { GITHUB_TOKEN_CREATE_URL } from './sync.js';
 
 export const PLAYER_AVATARS = ['🛡️', '⚔️', '🧙', '🦊', '🦉', '🐉', '🌟', '🏹', '🧭', '🌿', '🔥', '👑'];
 
@@ -1749,36 +1750,53 @@ export function renderModal(modalState, state, syncInfo = null) {
   }
 
   if (modalState.type === 'sync') {
-    const info = syncInfo || { connected: false, vaultId: null, status: 'idle', error: '', lastSyncedAt: 0, version: 0 };
-    const mode = modalState.mode === 'login' ? 'login' : 'register';
+    const info = syncInfo || {
+      connected: false,
+      username: null,
+      gistId: null,
+      gistUrl: null,
+      status: 'idle',
+      error: '',
+      lastSyncedAt: 0,
+      version: 0,
+    };
     const isBusy = info.status === 'syncing';
     const lastSyncText = info.lastSyncedAt ? formatRelativeTime(info.lastSyncedAt) : 'Not synced yet';
+    const handleLabel = info.username ? `@${info.username}` : 'GitHub Gist';
 
     if (info.connected) {
       return `
         <div class="modal-backdrop" data-action="close-modal-backdrop">
           <div class="modal-card modal-sm" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <div class="modal-head">
-              <h2 id="modal-title">☁️ Cloud Sync Connected</h2>
+              <h2 id="modal-title">☁️ GitHub Cloud Sync Connected</h2>
               <button class="btn-icon-tiny" data-action="close-modal" aria-label="Close">✕</button>
             </div>
             <div class="sync-panel">
               <div class="sync-connected-box">
                 <div class="sync-connected-row">
                   <span class="sync-dot is-ok"></span>
-                  <strong>Vault: <code>${esc(info.vaultId)}</code></strong>
+                  <strong>GitHub: <code>${esc(handleLabel)}</code></strong>
                   <span class="sync-rev-tag">v${info.version}</span>
                 </div>
                 <p class="sync-connected-sub">
-                  Last synced: <strong>${esc(lastSyncText)}</strong>. Every session, level-up, Gold change, and live timer automatically syncs across your PC and phone!
+                  Last synced: <strong>${esc(lastSyncText)}</strong>. Every session, level-up, Gold change, and live timer automatically syncs via your private GitHub Gist!
                 </p>
+                <div class="sync-meta-links">
+                  <button type="button" class="btn btn-soft btn-xs" data-action="copy-sync-token">📋 Copy Token for Phone</button>
+                  ${
+                    info.gistUrl
+                      ? `<a class="btn btn-ghost btn-xs" href="${esc(info.gistUrl)}" target="_blank" rel="noopener noreferrer">View Private Gist ↗</a>`
+                      : ''
+                  }
+                </div>
               </div>
 
               ${info.error ? `<div class="sync-error-banner">⚠️ ${esc(info.error)}</div>` : ''}
 
               <div class="sync-instructions">
-                <strong>To connect your other device:</strong>
-                <p>Open this same LifeQuest URL on your phone or PC, tap <strong>☁️ Sync → Sign In</strong>, and enter Sync Name <code>${esc(info.vaultId)}</code> + your passcode.</p>
+                <strong>To connect your phone or another browser:</strong>
+                <p>Open this same LifeQuest link on your phone, tap <strong>☁️ Sync</strong>, and paste your <strong>same GitHub Sync Token</strong> — your private vault is found automatically!</p>
               </div>
 
               <div class="backup-actions">
@@ -1799,38 +1817,55 @@ export function renderModal(modalState, state, syncInfo = null) {
       <div class="modal-backdrop" data-action="close-modal-backdrop">
         <div class="modal-card modal-sm" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div class="modal-head">
-            <h2 id="modal-title">☁️ PC ↔ Phone Cloud Sync</h2>
+            <h2 id="modal-title">☁️ Free GitHub PC ↔ Phone Sync</h2>
             <button class="btn-icon-tiny" data-action="close-modal" aria-label="Close">✕</button>
           </div>
           <div class="sync-panel">
             <p class="text-muted" style="margin: 0;">
-              Keep your activities, levels, Gold, Boss HP, and even live running timers automatically synced between your PC and phone.
+              Keep your activities, levels, Gold, Boss HP &amp; live timers synced across PC and phone using a <strong>private GitHub Gist</strong> — 100% free forever with zero credit caps!
             </p>
 
-            <div class="segmented sync-mode-tabs" role="tablist">
-              <button type="button" class="${mode === 'register' ? 'is-active' : ''}" data-action="set-sync-mode" data-mode="register">Create Sync Vault</button>
-              <button type="button" class="${mode === 'login' ? 'is-active' : ''}" data-action="set-sync-mode" data-mode="login">Sign In (2nd Device)</button>
+            <div class="sync-steps">
+              <div class="sync-step">
+                <span class="sync-step-num">1</span>
+                <div class="sync-step-body">
+                  <strong>Get a free GitHub Sync Token</strong> (only checks <code>gist</code>):
+                  <a class="btn btn-soft btn-xs sync-token-link-btn" href="${esc(GITHUB_TOKEN_CREATE_URL)}" target="_blank" rel="noopener noreferrer">
+                    🔑 Create GitHub Token ↗
+                  </a>
+                  <span class="sync-step-hint">Set Expiration to <strong>No expiration</strong> (or 1 year), click <strong>Generate token</strong>, and copy the <code>ghp_...</code> code.</span>
+                </div>
+              </div>
+              <div class="sync-step">
+                <span class="sync-step-num">2</span>
+                <div class="sync-step-body">
+                  <strong>Paste it below on PC &amp; Phone</strong>
+                  <span class="sync-step-hint">First device creates your private vault; your phone auto-finds and syncs it with the same token!</span>
+                </div>
+              </div>
             </div>
 
             ${info.error ? `<div class="sync-error-banner">⚠️ ${esc(info.error)}</div>` : ''}
 
-            <form id="sync-auth-form" class="modal-form" data-sync-mode="${mode}">
+            <form id="sync-auth-form" class="modal-form">
               <div class="form-field">
-                <label for="sync-vault-input">Sync Name <span class="label-hint">(letters, numbers, - or _)</span></label>
-                <input id="sync-vault-input" name="vaultId" type="text" required minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_\\-]{2,31}" placeholder="e.g., kai-quest" autocomplete="username" autofocus />
+                <label for="sync-token-input">GitHub Sync Token <span class="label-hint">(<code>gist</code> scope)</span></label>
+                <input
+                  id="sync-token-input"
+                  name="token"
+                  type="password"
+                  required
+                  minlength="10"
+                  maxlength="200"
+                  placeholder="Paste ghp_... or github_pat_..."
+                  autocomplete="off"
+                  spellcheck="false"
+                  autofocus
+                />
               </div>
 
-              <div class="form-field">
-                <label for="sync-pass-input">Private Passcode <span class="label-hint">(min 4 characters)</span></label>
-                <input id="sync-pass-input" name="passcode" type="password" required minlength="4" maxlength="128" placeholder="Choose a secret passcode..." autocomplete="${mode === 'register' ? 'new-password' : 'current-password'}" />
-              </div>
-
-              <p class="sync-mode-hint">
-                ${
-                  mode === 'register'
-                    ? 'First device? Create your Sync Name & passcode — your current progress uploads right away.'
-                    : 'Already created a vault on your PC or phone? Sign in with the same Sync Name & passcode to sync!'
-                }
+              <p class="sync-privacy-note">
+                🔒 Stored only inside this browser's local storage and only talks directly to GitHub's official API.
               </p>
 
               <div class="modal-footer">
@@ -1838,7 +1873,7 @@ export function renderModal(modalState, state, syncInfo = null) {
                 <div class="modal-footer-right">
                   <button type="button" class="btn btn-ghost" data-action="close-modal">Cancel</button>
                   <button type="submit" class="btn btn-gold" ${isBusy ? 'disabled' : ''}>
-                    ${isBusy ? '⏳ Connecting...' : mode === 'register' ? '☁️ Create & Sync Now' : '☁️ Sign In & Sync'}
+                    ${isBusy ? '⏳ Connecting...' : '☁️ Connect & Sync Now'}
                   </button>
                 </div>
               </div>

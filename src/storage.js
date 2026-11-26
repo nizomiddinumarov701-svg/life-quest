@@ -405,21 +405,30 @@ export function sanitizeState(raw) {
 }
 
 export function loadSyncMeta() {
+  const empty = {
+    provider: null, // 'gist'
+    vaultId: null,
+    gistId: null,
+    gistUrl: null,
+    username: null,
+    token: null,
+    version: 0,
+    lastSyncedAt: 0,
+    activeTimerUpdatedAt: 0,
+    dirty: false,
+  };
   try {
     const raw = localStorage.getItem(SYNC_META_KEY);
-    if (!raw) {
-      return {
-        vaultId: null,
-        token: null,
-        version: 0,
-        lastSyncedAt: 0,
-        activeTimerUpdatedAt: 0,
-        dirty: false,
-      };
-    }
+    if (!raw) return empty;
     const m = JSON.parse(raw);
+    const provider = m.provider === 'gist' ? 'gist' : null;
+    if (!provider) return empty;
     return {
+      provider,
       vaultId: typeof m.vaultId === 'string' ? m.vaultId : null,
+      gistId: typeof m.gistId === 'string' ? m.gistId : null,
+      gistUrl: typeof m.gistUrl === 'string' ? m.gistUrl : null,
+      username: typeof m.username === 'string' ? m.username : null,
       token: typeof m.token === 'string' ? m.token : null,
       version: Math.max(0, Number(m.version) || 0),
       lastSyncedAt: Math.max(0, Number(m.lastSyncedAt) || 0),
@@ -427,14 +436,7 @@ export function loadSyncMeta() {
       dirty: Boolean(m.dirty),
     };
   } catch {
-    return {
-      vaultId: null,
-      token: null,
-      version: 0,
-      lastSyncedAt: 0,
-      activeTimerUpdatedAt: 0,
-      dirty: false,
-    };
+    return empty;
   }
 }
 

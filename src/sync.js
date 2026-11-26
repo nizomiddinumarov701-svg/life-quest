@@ -4,7 +4,11 @@
 
 import { sanitizeState } from './storage.js';
 
-const SYNC_ENDPOINT = '/api/sync';
+const GITHUB_API = 'https://api.github.com';
+export const GIST_FILENAME = 'lifequest-sync-vault.json';
+export const GIST_DESCRIPTION = 'LifeQuest Cloud Sync Vault (Private — Do not delete)';
+export const GITHUB_TOKEN_CREATE_URL =
+  'https://github.com/settings/tokens/new?scopes=gist&description=LifeQuest+Sync';
 
 /**
  * Union-merge two arrays of objects keyed by `idField`, honoring deletion tombstones
@@ -137,68 +141,248 @@ export function mergeActiveTimers(localTimer, localUpdatedAt, remoteTimer, remot
   return { activeTimer: localTimer || null, activeTimerUpdatedAt: lTs };
 }
 
-async function callSyncApi(payload, token = null) {
-  const headers = { 'content-type': 'application/json' };
-  if (token) headers.authorization = `Bearer ${token}`;
+/**
+ * Build the JSON string stored inside the private GitHub Gist vault file.
+ */
+export function buildGistVaultPayload({ version = 1, state, activeTimer = null, activeTimerUpdatedAt = 0 }) {
+  return JSON.stringify(
+    {
+      app: 'LifeQuest',
+      schemaVersion: 2,
+      version: Math.max(1, Number(version) || 1),
+      updatedAt: Date.now(),
+      activeTimer: activeTimer || null,
+      activeTimerUpdatedAt: Math.max(0, Number(activeTimerUpdatedAt) || 0),
+      state: sanitizeState(state),
+    },
+    null,
+    2
+  );
+}
 
-  const res = await fetch(SYNC_ENDPOINT, {
-    method: 'POST',
+/**
+ * Parse a GitHub Gist API object into a normalized LifeQuest sync snapshot.
+ */
+export function parseGistVaultPayload(gistObj) {
+  const file = gistObj && gistObj.files ? gistObj.files[GIST_FILENAME] : null;
+  if (!file) {
+    throw new Error(`Sync file "${GIST_FILENAME}" was not found inside this Gist.`);
+  }
+  if (file.truncated && file.raw_url) {
+    return { needsRawFetch: true, rawUrl: file.raw_url };
+  }
+  return parseGistVaultText(file.content || '');
+}
+
+export function parseGistVaultText(jsonText) {
+  let parsed;
+  try {
+    parsed = JSON.parse(String(jsonText || ''));
+  } catch {
+    throw new Error('Could not parse LifeQuest sync data from GitHub Gist.');
+  }
+  const rawState = parsed && parsed.state && typeof parsed.state === 'object' ? parsed.state : parsed;
+  if (!rawState || !Array.isArray(rawState.activities)) {
+    throw new Error('GitHub Gist does not contain valid LifeQuest vault data.');
+  }
+  return {
+    needsRawFetch: false,
+    version: Math.max(1, Number(parsed.version) || 1),
+    state: sanitizeState(rawState),
+    activeTimer: parsed.activeTimer && typeof parsed.activeTimer === 'object' ? parsed.activeTimer : null,
+    activeTimerUpdatedAt: Math.max(0, Number(parsed.activeTimerUpdatedAt) || 0),
+  };
+}
+
+/**
+ * Locate the most recently updated LifeQuest sync Gist from a user's Gist list.
+ */
+export function findLifeQuestGist(gists = []) {
+  if (!Array.isArray(gists)) return null;
+  const matches = gists.filter((g) => g && g.id && g.files && Boolean(g.files[GIST_FILENAME]));
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => Date.parse(b.updated_at || 0) - Date.parse(a.updated_at || 0));
+  return matches[0];
+}
+
+async function githubFetch(path, token, { method = 'GET', body = null } = {}) {
+  const cleanToken = String(token || '').trim();
+  if (!cleanToken) {
+    throw new Error('Please paste your GitHub Sync Token first.');
+  }
+
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${cleanToken}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (body !== null) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const res = await fetch(`${GITHUB_API}${path}`, {
+    method,
     headers,
-    body: JSON.stringify(payload),
+    body: body !== null ? JSON.stringify(body) : undefined,
     cache: 'no-store',
   });
 
   const text = await res.text();
-  let data = {};
+  let data = null;
   try {
-    data = text ? JSON.parse(text) : {};
+    data = text ? JSON.parse(text) : null;
   } catch {
-    throw new Error(
-      res.status === 404
-        ? 'Cloud Sync is available on the live Netlify URL (not on local server.js).'
-        : `Sync server returned unexpected response (${res.status}).`
-    );
+    data = null;
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      const err = new Error('Invalid or expired GitHub token. Please generate a new token with "gist" permission.');
+      err.status = 401;
+      throw err;
+    }
+    if (res.status === 403) {
+      const msg = (data && data.message) || '';
+      const err = new Error(
+        msg.toLowerCase().includes('rate limit')
+          ? 'GitHub API rate limit reached — please wait a minute and try again.'
+          : 'GitHub token is missing "gist" permission. Create a token with the "gist" box checked!'
+      );
+      err.status = 403;
+      throw err;
+    }
+    if (res.status === 404) {
+      const err = new Error('Private sync Gist not found. Click Connect again to recreate it.');
+      err.status = 404;
+      throw err;
+    }
+    const err = new Error((data && data.message) || `GitHub sync error (${res.status}).`);
+    err.status = res.status;
+    throw err;
   }
 
   return { status: res.status, data };
 }
 
-export async function apiRegisterVault({ vaultId, passcode, state, activeTimer, activeTimerUpdatedAt }) {
-  return callSyncApi({
-    action: 'register',
-    vaultId,
-    passcode,
+async function hydrateGistSnapshot(gistObj, token) {
+  const parsed = parseGistVaultPayload(gistObj);
+  if (!parsed.needsRawFetch) return parsed;
+
+  const rawRes = await fetch(parsed.rawUrl, {
+    headers: { Authorization: `Bearer ${String(token || '').trim()}` },
+    cache: 'no-store',
+  });
+  if (!rawRes.ok) {
+    throw new Error(`Could not download full sync vault (${rawRes.status}).`);
+  }
+  const rawText = await rawRes.text();
+  return parseGistVaultText(rawText);
+}
+
+/**
+ * Connect with a GitHub token:
+ * 1. Verify token & fetch GitHub username.
+ * 2. Auto-discover an existing private LifeQuest Gist (seamless 2nd-device phone login!).
+ * 3. If none exists yet, create a brand-new private Gist seeded with local progress.
+ */
+export async function apiGistConnect({ token, state, activeTimer, activeTimerUpdatedAt }) {
+  const cleanToken = String(token || '').trim();
+  const { data: user } = await githubFetch('/user', cleanToken);
+  const username = (user && user.login) || 'github-user';
+
+  // Scan user's gists (up to 100) to auto-discover existing LifeQuest vault
+  const { data: gists } = await githubFetch('/gists?per_page=100', cleanToken);
+  const existing = findLifeQuestGist(gists);
+
+  if (existing) {
+    const { data: fullGist } = await githubFetch(`/gists/${encodeURIComponent(existing.id)}`, cleanToken);
+    const snapshot = await hydrateGistSnapshot(fullGist, cleanToken);
+    return {
+      ok: true,
+      created: false,
+      username,
+      gistId: fullGist.id,
+      gistUrl: fullGist.html_url || `https://gist.github.com/${fullGist.id}`,
+      version: snapshot.version,
+      state: snapshot.state,
+      activeTimer: snapshot.activeTimer,
+      activeTimerUpdatedAt: snapshot.activeTimerUpdatedAt,
+    };
+  }
+
+  // First device — create a brand-new secret Gist with local progress
+  const content = buildGistVaultPayload({
+    version: 1,
     state,
     activeTimer,
     activeTimerUpdatedAt,
   });
-}
 
-export async function apiLoginVault({ vaultId, passcode }) {
-  return callSyncApi({
-    action: 'login',
-    vaultId,
-    passcode,
-  });
-}
-
-export async function apiPullVault(token) {
-  return callSyncApi({ action: 'pull' }, token);
-}
-
-export async function apiPushVault({ token, baseVersion, state, activeTimer, activeTimerUpdatedAt }) {
-  return callSyncApi(
-    {
-      action: 'push',
-      baseVersion,
-      state,
-      activeTimer,
-      activeTimerUpdatedAt,
+  const { data: created } = await githubFetch('/gists', cleanToken, {
+    method: 'POST',
+    body: {
+      description: GIST_DESCRIPTION,
+      public: false,
+      files: {
+        [GIST_FILENAME]: { content },
+      },
     },
-    token
-  );
+  });
+
+  return {
+    ok: true,
+    created: true,
+    username,
+    gistId: created.id,
+    gistUrl: created.html_url || `https://gist.github.com/${created.id}`,
+    version: 1,
+    state: sanitizeState(state),
+    activeTimer: activeTimer || null,
+    activeTimerUpdatedAt: Math.max(0, Number(activeTimerUpdatedAt) || 0),
+  };
 }
 
-export async function apiLogoutVault(token) {
-  return callSyncApi({ action: 'logout' }, token);
+export async function apiGistPull({ token, gistId }) {
+  const { status, data: fullGist } = await githubFetch(`/gists/${encodeURIComponent(gistId)}`, token);
+  const snapshot = await hydrateGistSnapshot(fullGist, token);
+  return {
+    status,
+    data: {
+      ok: true,
+      version: snapshot.version,
+      state: snapshot.state,
+      activeTimer: snapshot.activeTimer,
+      activeTimerUpdatedAt: snapshot.activeTimerUpdatedAt,
+      gistUrl: fullGist.html_url || `https://gist.github.com/${gistId}`,
+    },
+  };
+}
+
+export async function apiGistPush({ token, gistId, version, state, activeTimer, activeTimerUpdatedAt }) {
+  const nextVersion = Math.max(1, Number(version) || 1);
+  const content = buildGistVaultPayload({
+    version: nextVersion,
+    state,
+    activeTimer,
+    activeTimerUpdatedAt,
+  });
+
+  const { status, data: updated } = await githubFetch(`/gists/${encodeURIComponent(gistId)}`, token, {
+    method: 'PATCH',
+    body: {
+      description: GIST_DESCRIPTION,
+      files: {
+        [GIST_FILENAME]: { content },
+      },
+    },
+  });
+
+  return {
+    status,
+    data: {
+      ok: true,
+      version: nextVersion,
+      gistUrl: (updated && updated.html_url) || `https://gist.github.com/${gistId}`,
+    },
+  };
 }

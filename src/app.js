@@ -29,11 +29,9 @@ import {
   saveSyncMeta,
 } from './storage.js';
 import {
-  apiLoginVault,
-  apiLogoutVault,
-  apiPullVault,
-  apiPushVault,
-  apiRegisterVault,
+  apiGistConnect,
+  apiGistPull,
+  apiGistPush,
   mergeActiveTimers,
   mergeStates,
 } from './sync.js';
@@ -90,10 +88,18 @@ if (activeTimer && !state.activities.some((a) => a.id === activeTimer.activityId
   saveActiveTimer(null);
 }
 
+function isCloudSyncConnected() {
+  return Boolean(syncMeta.provider === 'gist' && syncMeta.token && syncMeta.gistId);
+}
+
 function getSyncInfo() {
   return {
-    connected: Boolean(syncMeta.token && syncMeta.vaultId),
-    vaultId: syncMeta.vaultId,
+    connected: isCloudSyncConnected(),
+    provider: syncMeta.provider,
+    username: syncMeta.username,
+    gistId: syncMeta.gistId,
+    gistUrl: syncMeta.gistUrl,
+    vaultId: syncMeta.username || syncMeta.vaultId,
     version: syncMeta.version,
     lastSyncedAt: syncMeta.lastSyncedAt,
     status: syncRuntime.status,
@@ -104,24 +110,25 @@ function getSyncInfo() {
 function updateSyncButtonUi() {
   const btn = document.getElementById('sync-status-btn');
   if (!btn) return;
-  const connected = Boolean(syncMeta.token && syncMeta.vaultId);
+  const connected = isCloudSyncConnected();
   btn.classList.toggle('is-connected', connected);
 
   if (!connected) {
     btn.innerHTML = '☁️ Sync';
-    btn.title = 'Set up PC ↔ Phone Cloud Sync';
+    btn.title = 'Set up free GitHub PC ↔ Phone Cloud Sync';
     return;
   }
 
+  const label = syncMeta.username ? `@${syncMeta.username}` : 'GitHub Gist';
   if (syncRuntime.status === 'syncing') {
     btn.innerHTML = '<span class="sync-dot is-busy"></span> Syncing…';
-    btn.title = `Syncing vault "${syncMeta.vaultId}"`;
+    btn.title = `Syncing private GitHub Gist (${label})`;
   } else if (syncRuntime.status === 'error' || syncRuntime.status === 'offline') {
     btn.innerHTML = '<span class="sync-dot is-warn"></span> Retry';
     btn.title = syncRuntime.error || 'Offline — click to retry sync';
   } else {
     btn.innerHTML = '<span class="sync-dot is-ok"></span> Synced';
-    btn.title = `Cloud Sync active (${syncMeta.vaultId}) — click to manage`;
+    btn.title = `GitHub Sync active (${label}) — click to manage`;
   }
 }
 
@@ -133,10 +140,10 @@ function persistState({ deletedId = null } = {}) {
   state.updatedAt = Date.now();
   saveState(state);
 
-  if (syncMeta.token) {
+  if (isCloudSyncConnected()) {
     syncMeta.dirty = true;
     saveSyncMeta(syncMeta);
-    scheduleCloudPush(350);
+    scheduleCloudPush(450);
   }
 }
 
@@ -144,17 +151,17 @@ function persistTimer(nextTimer) {
   activeTimer = nextTimer;
   syncMeta.activeTimerUpdatedAt = Date.now();
   saveActiveTimer(activeTimer);
-  if (syncMeta.token) {
+  if (isCloudSyncConnected()) {
     syncMeta.dirty = true;
   }
   saveSyncMeta(syncMeta);
-  if (syncMeta.token) {
-    scheduleCloudPush(200);
+  if (isCloudSyncConnected()) {
+    scheduleCloudPush(300);
   }
 }
 
-function scheduleCloudPush(delayMs = 350) {
-  if (!syncMeta.token) return;
+function scheduleCloudPush(delayMs = 450) {
+  if (!isCloudSyncConnected()) return;
   if (pushDebounceTimer) clearTimeout(pushDebounceTimer);
   pushDebounceTimer = setTimeout(() => {
     pushDebounceTimer = null;
@@ -185,7 +192,7 @@ function applyRemoteTimer(remoteTimer, remoteUpdatedAt) {
 }
 
 async function syncWithCloud({ forcePull = false, manual = false } = {}) {
-  if (!syncMeta.token || !syncMeta.vaultId) return;
+  if (!isCloudSyncConnected()) return;
   if (syncRuntime.inFlight) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     syncRuntime.status = 'offline';
@@ -201,67 +208,59 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
 
   try {
     if (syncMeta.dirty) {
-      let res = await apiPushVault({
+      // Pull latest remote Gist first and merge cleanly so neither PC nor Phone overwrites the other
+      let remoteVersion = syncMeta.version;
+      try {
+        const latest = await apiGistPull({ token: syncMeta.token, gistId: syncMeta.gistId });
+        if (latest.data && latest.data.ok) {
+          remoteVersion = Number(latest.data.version) || remoteVersion;
+          const remoteTimerTs = Number(latest.data.activeTimerUpdatedAt) || 0;
+          if (remoteVersion > syncMeta.version || remoteTimerTs > syncMeta.activeTimerUpdatedAt) {
+            state = mergeStates(state, latest.data.state);
+            saveState(state);
+            applyRemoteTimer(latest.data.activeTimer, remoteTimerTs);
+          }
+        }
+      } catch (pullErr) {
+        if (pullErr.status === 401) {
+          handleSyncSessionExpired();
+          return;
+        }
+        throw pullErr;
+      }
+
+      const nextVersion = Math.max(syncMeta.version, remoteVersion) + 1;
+      const res = await apiGistPush({
         token: syncMeta.token,
-        baseVersion: syncMeta.version,
+        gistId: syncMeta.gistId,
+        version: nextVersion,
         state,
         activeTimer,
         activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
       });
 
-      if (res.status === 409 && res.data && res.data.conflict) {
-        // Another device updated first — merge both cleanly and retry push!
-        state = mergeStates(state, res.data.state);
-        saveState(state);
-        applyRemoteTimer(res.data.activeTimer, res.data.activeTimerUpdatedAt);
-        syncMeta.version = Number(res.data.version) || syncMeta.version;
-
-        res = await apiPushVault({
-          token: syncMeta.token,
-          baseVersion: syncMeta.version,
-          state,
-          activeTimer,
-          activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
-        });
-      }
-
-      if (res.status === 401) {
-        handleSyncSessionExpired();
-        return;
-      }
-
-      if (!res.data || !res.data.ok) {
-        throw new Error((res.data && res.data.error) || 'Could not push progress to cloud.');
-      }
-
-      syncMeta.version = Number(res.data.version) || syncMeta.version;
+      syncMeta.version = Number(res.data && res.data.version) || nextVersion;
+      if (res.data && res.data.gistUrl) syncMeta.gistUrl = res.data.gistUrl;
       syncMeta.dirty = false;
       syncMeta.lastSyncedAt = Date.now();
       saveSyncMeta(syncMeta);
       syncRuntime.status = 'synced';
       if (manual) {
-        showToast({ icon: '☁️', title: 'Synced to Cloud!', subtitle: `Vault "${syncMeta.vaultId}" is up to date.` });
+        showToast({ icon: '☁️', title: 'Synced to GitHub!', subtitle: 'Your private Gist vault is up to date.' });
       }
       render();
       return;
     }
 
     if (forcePull || !syncMeta.dirty) {
-      const res = await apiPullVault(syncMeta.token);
-      if (res.status === 401) {
-        handleSyncSessionExpired();
-        return;
-      }
-      if (!res.data || !res.data.ok) {
-        throw new Error((res.data && res.data.error) || 'Could not pull cloud state.');
-      }
-
+      const res = await apiGistPull({ token: syncMeta.token, gistId: syncMeta.gistId });
       const remoteVersion = Number(res.data.version) || 0;
       const remoteTimerTs = Number(res.data.activeTimerUpdatedAt) || 0;
       const needsApply =
         remoteVersion !== syncMeta.version || remoteTimerTs > syncMeta.activeTimerUpdatedAt;
 
       syncMeta.lastSyncedAt = Date.now();
+      if (res.data.gistUrl) syncMeta.gistUrl = res.data.gistUrl;
       if (needsApply) {
         const isCleanLocal = state.sessions.length === 0 && (state.updatedAt || 0) === 0;
         if (isCleanLocal) {
@@ -279,7 +278,7 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
       syncRuntime.status = 'synced';
 
       if (manual) {
-        showToast({ icon: '☁️', title: 'Synced!', subtitle: `Up to date with vault "${syncMeta.vaultId}".` });
+        showToast({ icon: '☁️', title: 'Synced!', subtitle: 'Up to date with your private GitHub Gist.' });
       }
       if (needsApply || manual || (modalState && modalState.type === 'sync')) {
         render();
@@ -288,8 +287,12 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
       }
     }
   } catch (err) {
+    if (err && err.status === 401) {
+      handleSyncSessionExpired();
+      return;
+    }
     syncRuntime.status = 'error';
-    syncRuntime.error = err.message || 'Cloud sync failed.';
+    syncRuntime.error = err.message || 'GitHub sync failed.';
     if (manual) {
       showToast({ icon: '⚠️', title: 'Sync failed', subtitle: syncRuntime.error });
     }
@@ -305,7 +308,11 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
 
 function handleSyncSessionExpired() {
   syncMeta = {
+    provider: null,
     vaultId: null,
+    gistId: null,
+    gistUrl: null,
+    username: null,
     token: null,
     version: 0,
     lastSyncedAt: 0,
@@ -314,8 +321,8 @@ function handleSyncSessionExpired() {
   };
   saveSyncMeta(syncMeta);
   syncRuntime.status = 'idle';
-  syncRuntime.error = 'Your sync session expired — please sign in again.';
-  showToast({ icon: '☁️', title: 'Cloud Sync signed out', subtitle: 'Sign in again to resume syncing.' });
+  syncRuntime.error = 'Your GitHub token was rejected or expired — please paste a valid token to resume syncing.';
+  showToast({ icon: '☁️', title: 'GitHub Sync disconnected', subtitle: 'Paste a fresh GitHub token to reconnect.' });
   render();
 }
 
@@ -1142,13 +1149,7 @@ document.addEventListener('click', (e) => {
 
     case 'open-sync-modal':
       syncRuntime.error = '';
-      modalState = { type: 'sync', mode: 'register' };
-      render();
-      break;
-
-    case 'set-sync-mode':
-      syncRuntime.error = '';
-      modalState = { type: 'sync', mode: trigger.dataset.mode === 'login' ? 'login' : 'register' };
+      modalState = { type: 'sync' };
       render();
       break;
 
@@ -1156,10 +1157,32 @@ document.addEventListener('click', (e) => {
       syncWithCloud({ forcePull: true, manual: true });
       break;
 
+    case 'copy-sync-token': {
+      if (!syncMeta.token) break;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(syncMeta.token)
+          .then(() => {
+            showToast({
+              icon: '📋',
+              title: 'Sync Token Copied!',
+              subtitle: 'Paste it into ☁️ Sync on your phone to connect automatically.',
+            });
+          })
+          .catch(() => {
+            showToast({ icon: '⚠️', title: 'Clipboard blocked', subtitle: 'Please copy your token from GitHub.' });
+          });
+      }
+      break;
+    }
+
     case 'sync-logout': {
-      const oldToken = syncMeta.token;
       syncMeta = {
+        provider: null,
         vaultId: null,
+        gistId: null,
+        gistUrl: null,
+        username: null,
         token: null,
         version: 0,
         lastSyncedAt: 0,
@@ -1170,10 +1193,7 @@ document.addEventListener('click', (e) => {
       syncRuntime.status = 'idle';
       syncRuntime.error = '';
       modalState = null;
-      if (oldToken) {
-        apiLogoutVault(oldToken).catch(() => {});
-      }
-      showToast({ icon: '☁️', title: 'Signed out of Cloud Sync', subtitle: 'Your local copy stays safe on this device.' });
+      showToast({ icon: '☁️', title: 'Signed out of GitHub Sync', subtitle: 'Your local copy stays safe on this device.' });
       render();
       break;
     }
@@ -1470,7 +1490,7 @@ document.addEventListener('input', (e) => {
     activeTimer.note = String(e.target.value || '').slice(0, 120);
     syncMeta.activeTimerUpdatedAt = Date.now();
     saveActiveTimer(activeTimer);
-    if (syncMeta.token) {
+    if (isCloudSyncConnected()) {
       syncMeta.dirty = true;
       saveSyncMeta(syncMeta);
       scheduleCloudPush(950);
@@ -1664,14 +1684,12 @@ document.addEventListener('submit', (e) => {
   if (form.id === 'sync-auth-form') {
     e.preventDefault();
     const fd = new FormData(form);
-    const vaultId = String(fd.get('vaultId') || '').trim().toLowerCase();
-    const passcode = String(fd.get('passcode') || '').trim();
-    const mode = form.dataset.syncMode === 'login' ? 'login' : 'register';
-    handleSyncAuthSubmit({ mode, vaultId, passcode });
+    const token = String(fd.get('token') || '').trim();
+    handleSyncAuthSubmit({ token });
   }
 });
 
-async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
+async function handleSyncAuthSubmit({ token }) {
   if (syncRuntime.inFlight) return;
   syncRuntime.inFlight = true;
   syncRuntime.status = 'syncing';
@@ -1679,24 +1697,25 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
   render();
 
   try {
-    if (mode === 'register') {
+    const cleanToken = String(token || '').trim();
+    const res = await apiGistConnect({
+      token: cleanToken,
+      state,
+      activeTimer,
+      activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
+    });
+
+    if (res.created) {
       state.updatedAt = state.updatedAt || Date.now();
       saveState(state);
-      const res = await apiRegisterVault({
-        vaultId,
-        passcode,
-        state,
-        activeTimer,
-        activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
-      });
-      if (!res.data || !res.data.ok) {
-        throw new Error((res.data && res.data.error) || 'Could not create sync vault.');
-      }
-
       syncMeta = {
-        vaultId: res.data.vaultId,
-        token: res.data.token,
-        version: Number(res.data.version) || 1,
+        provider: 'gist',
+        vaultId: res.username,
+        gistId: res.gistId,
+        gistUrl: res.gistUrl,
+        username: res.username,
+        token: cleanToken,
+        version: Number(res.version) || 1,
         lastSyncedAt: Date.now(),
         activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
         dirty: false,
@@ -1707,22 +1726,17 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
       sound.playQuestClaim();
       showToast({
         icon: '☁️',
-        title: `Cloud Vault "${syncMeta.vaultId}" Created!`,
-        subtitle: 'Sign in with the same Sync Name & passcode on your phone!',
+        title: `GitHub Sync Ready (@${res.username})!`,
+        subtitle: 'Paste the same token on your phone to sync automatically!',
         tone: 'gold',
       });
       render();
       return;
     }
 
-    // Login on 2nd device (e.g. Phone)
-    const res = await apiLoginVault({ vaultId, passcode });
-    if (!res.data || !res.data.ok) {
-      throw new Error((res.data && res.data.error) || 'Could not sign in to sync vault.');
-    }
-
+    // Existing private Gist discovered — merge or load immediately!
     const hadLocalProgress = state.sessions.length > 0 || (state.updatedAt || 0) > 0;
-    const remoteState = sanitizeState(res.data.state);
+    const remoteState = sanitizeState(res.state);
     const keepSettings = { ...state.settings };
 
     if (hadLocalProgress) {
@@ -1733,13 +1747,17 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
     }
     saveState(state);
 
-    const remoteTimerTs = Number(res.data.activeTimerUpdatedAt) || 0;
-    applyRemoteTimer(res.data.activeTimer, remoteTimerTs);
+    const remoteTimerTs = Number(res.activeTimerUpdatedAt) || 0;
+    applyRemoteTimer(res.activeTimer, remoteTimerTs);
 
     syncMeta = {
-      vaultId: res.data.vaultId,
-      token: res.data.token,
-      version: Number(res.data.version) || 1,
+      provider: 'gist',
+      vaultId: res.username,
+      gistId: res.gistId,
+      gistUrl: res.gistUrl,
+      username: res.username,
+      token: cleanToken,
+      version: Number(res.version) || 1,
       lastSyncedAt: Date.now(),
       activeTimerUpdatedAt: syncMeta.activeTimerUpdatedAt,
       dirty: hadLocalProgress,
@@ -1750,10 +1768,10 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
     sound.playQuestClaim();
     showToast({
       icon: '☁️',
-      title: `Connected to "${syncMeta.vaultId}"!`,
+      title: `Connected to @${res.username}!`,
       subtitle: hadLocalProgress
-        ? 'Merged local & cloud progress — now syncing automatically!'
-        : 'Progress loaded from cloud — now syncing automatically!',
+        ? 'Merged local & GitHub progress — now syncing automatically!'
+        : 'Progress loaded from your private GitHub Gist!',
       tone: 'gold',
     });
     render();
@@ -1765,7 +1783,7 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
     }
   } catch (err) {
     syncRuntime.status = 'error';
-    syncRuntime.error = err.message || 'Cloud sync failed.';
+    syncRuntime.error = err.message || 'GitHub sync failed.';
     render();
   } finally {
     syncRuntime.inFlight = false;
@@ -1773,35 +1791,35 @@ async function handleSyncAuthSubmit({ mode, vaultId, passcode }) {
   }
 }
 
-// Automatic real-time cloud sync hooks (visibility, focus, online, periodic poll)
+// Automatic real-time cloud sync hooks (visibility, focus, online, gentle 30s poll)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && syncMeta.token) {
+  if (document.visibilityState === 'visible' && isCloudSyncConnected()) {
     syncWithCloud({ forcePull: true });
   }
 });
 
 window.addEventListener('focus', () => {
-  if (syncMeta.token) {
+  if (isCloudSyncConnected()) {
     syncWithCloud({ forcePull: true });
   }
 });
 
 window.addEventListener('online', () => {
-  if (syncMeta.token) {
+  if (isCloudSyncConnected()) {
     syncWithCloud({ forcePull: true });
   }
 });
 
 setInterval(() => {
   if (
-    syncMeta.token &&
+    isCloudSyncConnected() &&
     document.visibilityState === 'visible' &&
     (!modalState || modalState.type === 'sync') &&
     (!document.activeElement || document.activeElement.id !== 'active-timer-note-input')
   ) {
     syncWithCloud({ forcePull: true });
   }
-}, 15000);
+}, 30000);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -1824,6 +1842,6 @@ animateViewEntrance();
 ensureTimerLoop();
 initAmbientCanvas();
 initInteractiveCardEffects();
-if (syncMeta.token) {
+if (isCloudSyncConnected()) {
   syncWithCloud({ forcePull: true });
 }
