@@ -1735,12 +1735,12 @@ export function renderModal(modalState, state, syncInfo = null, derived = null) 
 
     return `
       <div class="modal-backdrop" data-action="close-modal-backdrop">
-        <div class="modal-card modal-sm levelup-modal chest-reveal-modal rarity-${esc(gear ? gear.rarity : 'common')}" style="--rarity-color: ${esc(rm.color)}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card modal-sm modal-levelup chest-reveal-modal rarity-${esc(gear ? gear.rarity : 'common')}" style="--rarity-color: ${esc(rm.color)}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div class="levelup-rays"></div>
           <div class="chest-source-kicker">${esc(p.chestLabel || 'Loot Chest Opened!')}</div>
           <div class="levelup-badge chest-item-badge">${esc(gear ? gear.icon : '🎁')}</div>
           <span class="rarity-pill rarity-${esc(gear ? gear.rarity : 'common')} chest-rarity-pill">${esc(rm.label)}</span>
-          <h2 id="modal-title" class="levelup-title">${esc(gear ? gear.name : 'Mystery Loot')}</h2>
+          <h2 id="modal-title" class="levelup-heading">${esc(gear ? gear.name : 'Mystery Loot')}</h2>
           <div class="chest-buff-banner">${esc(gear ? gear.bonusText : '')}</div>
           <p class="levelup-sub">${esc(gear ? gear.lore : '')}</p>
           ${

@@ -4504,16 +4504,49 @@ select:focus-visible {
 
 /* Animated Loot Chest Reveal Modal */
 .chest-reveal-modal {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  padding: 2rem 1.6rem 1.7rem;
   border-color: color-mix(in srgb, var(--rarity-color, #fbbf24) 65%, transparent);
   box-shadow: 0 0 42px color-mix(in srgb, var(--rarity-color, #fbbf24) 28%, transparent), var(--shadow-elevated);
+}
+
+.modal-levelup .levelup-rays,
+.chest-reveal-modal .levelup-rays {
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.42) 44%, transparent 70%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.42) 44%, transparent 70%);
+}
+
+.chest-reveal-modal .levelup-rays {
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--rarity-color, #fbbf24) 26%, transparent) 0deg 18deg,
+    transparent 18deg 45deg,
+    color-mix(in srgb, var(--accent-primary, #818cf8) 16%, transparent) 45deg 63deg,
+    transparent 63deg 90deg,
+    color-mix(in srgb, var(--rarity-color, #fbbf24) 26%, transparent) 90deg 108deg,
+    transparent 108deg 135deg,
+    color-mix(in srgb, var(--accent-primary, #818cf8) 16%, transparent) 135deg 153deg,
+    transparent 153deg 180deg,
+    color-mix(in srgb, var(--rarity-color, #fbbf24) 26%, transparent) 180deg 198deg,
+    transparent 198deg 225deg,
+    color-mix(in srgb, var(--accent-primary, #818cf8) 16%, transparent) 225deg 243deg,
+    transparent 243deg 270deg,
+    color-mix(in srgb, var(--rarity-color, #fbbf24) 26%, transparent) 270deg 288deg,
+    transparent 288deg 315deg,
+    color-mix(in srgb, var(--accent-primary, #818cf8) 16%, transparent) 315deg 333deg,
+    transparent 333deg 360deg
+  );
 }
 
 .chest-source-kicker {
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
+  margin-bottom: 0.75rem;
   position: relative;
   z-index: 1;
 }
