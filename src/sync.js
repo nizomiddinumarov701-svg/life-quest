@@ -103,6 +103,67 @@ export function mergeStates(localRaw, remoteRaw) {
   const unlockedThemes = Array.from(new Set([...(remote.unlockedThemes || []), ...(local.unlockedThemes || [])]));
   const inventoryGear = mergeById(local.inventoryGear, remote.inventoryGear, deletedIds, 'gearId');
   const equippedGear = remoteIsNewer ? { ...remote.equippedGear } : { ...local.equippedGear };
+
+  // Monotonic Forge upgrade levels per gear item
+  const gearUpgrades = { ...(remote.gearUpgrades || {}) };
+  for (const [gearId, lv] of Object.entries(local.gearUpgrades || {})) {
+    gearUpgrades[gearId] = Math.max(Number(gearUpgrades[gearId]) || 0, Number(lv) || 0);
+  }
+
+  // Conflict-free Forge Shard ledger
+  const shardLedger = mergeById(local.shardLedger, remote.shardLedger, deletedIds, 'id').sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+
+  // Cozy Companion merge (never erases an adopted pet with an unadopted empty slot)
+  const lComp = local.companion || {};
+  const rComp = remote.companion || {};
+  let companion;
+  if (lComp.species && !rComp.species) {
+    companion = { ...lComp };
+  } else if (!lComp.species && rComp.species) {
+    companion = { ...rComp };
+  } else {
+    const compRemoteNewer = (Number(rComp.updatedAt) || 0) > (Number(lComp.updatedAt) || 0);
+    companion = compRemoteNewer ? { ...rComp } : { ...lComp };
+  }
+  companion.petsCount = Math.max(Number(lComp.petsCount) || 0, Number(rComp.petsCount) || 0);
+
+  // Story Campaigns merge (honors deletions, unions chapter completion & victory claim)
+  const campMap = new Map();
+  for (const c of remote.campaigns || []) {
+    if (!c || !c.id || deletedIds[c.id]) continue;
+    campMap.set(c.id, c);
+  }
+  for (const c of local.campaigns || []) {
+    if (!c || !c.id || deletedIds[c.id]) continue;
+    const prev = campMap.get(c.id);
+    if (!prev) {
+      campMap.set(c.id, c);
+    } else {
+      const localNewer = (Number(c.updatedAt) || 0) >= (Number(prev.updatedAt) || 0);
+      const base = localNewer ? c : prev;
+      const other = localNewer ? prev : c;
+      const otherChMap = new Map((other.chapters || []).map((ch) => [ch.id, ch]));
+      const chapters = (base.chapters || []).map((ch) => {
+        const och = otherChMap.get(ch.id);
+        const completed = Boolean(ch.completed || (och && och.completed));
+        const completedAt = completed
+          ? Math.max(Number(ch.completedAt) || 0, Number(och && och.completedAt) || 0) || Date.now()
+          : 0;
+        return { ...ch, completed, completedAt };
+      });
+      campMap.set(c.id, {
+        ...base,
+        chapters,
+        claimedVictory: Boolean(prev.claimedVictory || c.claimedVictory),
+        completedAt: Math.max(Number(prev.completedAt) || 0, Number(c.completedAt) || 0),
+        updatedAt: Math.max(Number(prev.updatedAt) || 0, Number(c.updatedAt) || 0),
+      });
+    }
+  }
+  const campaigns = Array.from(campMap.values());
+
   const openedChestMilestones = Array.from(
     new Set([...(remote.openedChestMilestones || []), ...(local.openedChestMilestones || [])])
   );
@@ -132,6 +193,10 @@ export function mergeStates(localRaw, remoteRaw) {
     unlockedThemes,
     inventoryGear,
     equippedGear,
+    gearUpgrades,
+    shardLedger,
+    companion,
+    campaigns,
     openedChestMilestones,
     purchasedChests,
     shieldPurchases,

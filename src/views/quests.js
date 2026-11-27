@@ -8,9 +8,11 @@ import {
   GEAR_SLOTS,
   RARITY_META,
   formatDurationShort,
+  getScaledGearItem,
 } from '../rpgEngine.js';
 import { renderAttributeRadarSvg } from '../charts.js';
 import { esc } from './helpers.js';
+import { renderCompanionSanctuaryCard, renderStoryCampaignsSection } from './rpgExtras.js';
 
 /**
  * Daily Quest Item row.
@@ -171,10 +173,15 @@ export function renderWeeklyBossCard(state, derived, compact = false) {
  */
 function renderHeroArmorySection(state, derived) {
   const gearBonuses = derived.gearBonuses;
+  const forge = derived.forge || { balance: 0 };
+  const gearUpgrades = state.gearUpgrades || {};
   const pendingChests = derived.pendingChests || [];
   const rarityOrder = { legendary: 4, epic: 3, rare: 2, common: 1 };
   const ownedItems = (state.inventoryGear || [])
-    .map((entry) => GEAR_MAP[entry.gearId])
+    .map((entry) => {
+      const base = GEAR_MAP[entry.gearId];
+      return base ? getScaledGearItem(base, Number(gearUpgrades[base.id]) || 0) : null;
+    })
     .filter(Boolean)
     .sort((a, b) => (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0) || a.name.localeCompare(b.name));
 
@@ -185,18 +192,23 @@ function renderHeroArmorySection(state, derived) {
     <section class="card stats-card armory-card">
       <div class="card-header-row">
         <div>
-          <h3 class="card-title">🛡️ Hero Armory &amp; RPG Gear</h3>
-          <p class="card-sub">Open Loot Chests from Level-Ups, Boss Raids &amp; Focus Sprints to equip passive XP, Gold &amp; Boss DMG buffs.</p>
+          <h3 class="card-title">🛡️ Hero Armory, Blacksmith Forge &amp; Gear</h3>
+          <p class="card-sub">Open Loot Chests, equip passive buffs, and temper gear up to <strong>Masterwork ★</strong> at the Forge.</p>
         </div>
-        ${
-          nextChest
-            ? `
-          <button type="button" class="btn btn-gold btn-sm pulse-glow" data-action="open-next-chest">
-            🎁 Open Chest (${pendingChests.length})
+        <div class="armory-head-actions">
+          <button type="button" class="btn btn-soft btn-sm forge-open-btn" data-action="open-forge-modal" title="Upgrade owned gear or craft missing items">
+            🔨 Forge · <span class="shard-count-inline">💠 ${forge.balance}</span>
           </button>
-        `
-            : `<button type="button" class="btn btn-soft btn-xs" data-action="switch-tab" data-tab="shop">🧰 Mystery Chests →</button>`
-        }
+          ${
+            nextChest
+              ? `
+            <button type="button" class="btn btn-gold btn-sm pulse-glow" data-action="open-next-chest">
+              🎁 Open Chest (${pendingChests.length})
+            </button>
+          `
+              : `<button type="button" class="btn btn-soft btn-xs" data-action="switch-tab" data-tab="shop">🧰 Mystery Chests →</button>`
+          }
+        </div>
       </div>
 
       ${
@@ -221,12 +233,12 @@ function renderHeroArmorySection(state, derived) {
           const item = gearBonuses.equippedItems[slot.id];
           const rm = item ? RARITY_META[item.rarity] : null;
           return `
-            <div class="gear-slot-card ${item ? `is-filled rarity-${esc(item.rarity)}` : 'is-empty'}" ${rm ? `style="--rarity-color: ${esc(rm.color)}"` : ''}>
+            <div class="gear-slot-card ${item ? `is-filled rarity-${esc(item.rarity)} ${item.isMasterwork ? 'is-masterwork' : ''}` : 'is-empty'}" ${rm ? `style="--rarity-color: ${esc(rm.color)}"` : ''}>
               <div class="gear-slot-head">
                 <span class="gear-slot-label">${esc(slot.icon)} ${esc(slot.label)}</span>
                 ${
                   item
-                    ? `<span class="rarity-pill rarity-${esc(item.rarity)}">${esc(rm.label)}</span>`
+                    ? `<span class="rarity-pill rarity-${esc(item.rarity)}">${esc(rm.label)}${item.forgeTag ? ` ${esc(item.forgeTag)}` : ''}</span>`
                     : `<span class="gear-empty-tag">Empty</span>`
                 }
               </div>
@@ -236,13 +248,13 @@ function renderHeroArmorySection(state, derived) {
                 <div class="gear-slot-item">
                   <span class="gear-item-ico">${esc(item.icon)}</span>
                   <div class="gear-item-copy">
-                    <div class="gear-item-name">${esc(item.name)}</div>
+                    <div class="gear-item-name">${esc(item.displayName || item.name)}</div>
                     <div class="gear-item-buff">${esc(item.bonusText)}</div>
                   </div>
                 </div>
                 <button type="button" class="btn btn-ghost btn-xs gear-unequip-btn" data-action="unequip-gear" data-slot="${esc(slot.id)}">Unequip</button>
               `
-                  : `<div class="gear-empty-hint">Open chests to find a ${esc(slot.label.toLowerCase())}!</div>`
+                  : `<div class="gear-empty-hint">Open chests or visit the Forge to find a ${esc(slot.label.toLowerCase())}!</div>`
               }
             </div>
           `;
@@ -277,7 +289,7 @@ function renderHeroArmorySection(state, derived) {
                 return `
                   <button
                     type="button"
-                    class="inv-item-card rarity-${esc(item.rarity)} ${isEquipped ? 'is-equipped' : ''}"
+                    class="inv-item-card rarity-${esc(item.rarity)} ${isEquipped ? 'is-equipped' : ''} ${item.isMasterwork ? 'is-masterwork' : ''}"
                     style="--rarity-color: ${esc(rm.color)}"
                     data-action="${isEquipped ? 'unequip-gear' : 'equip-gear'}"
                     data-gear-id="${esc(item.id)}"
@@ -286,7 +298,7 @@ function renderHeroArmorySection(state, derived) {
                   >
                     <span class="inv-item-ico">${esc(item.icon)}</span>
                     <div class="inv-item-info">
-                      <div class="inv-item-title">${esc(item.name)}</div>
+                      <div class="inv-item-title">${esc(item.displayName || item.name)}</div>
                       <div class="inv-item-meta">${esc(item.bonusText)}</div>
                     </div>
                     <span class="inv-state-tag">${isEquipped ? '✓ Equipped' : 'Equip'}</span>
@@ -314,12 +326,19 @@ export function renderQuestsAndBadgesView(state, derived) {
     <div class="page-head-row">
       <div>
         <h1 class="page-title">Quests, Boss Arena &amp; Character Sheet</h1>
-        <p class="page-sub">Slay weekly bosses, open Loot Chests, equip RPG gear, and evolve your Hero Class.</p>
+        <p class="page-sub">Slay weekly bosses, forge Masterwork gear, evolve your Companion Pet, and conquer Story Campaigns.</p>
       </div>
-      <button class="btn btn-primary" data-action="open-custom-quest">+ Add Custom Quest</button>
+      <div class="page-head-actions">
+        <button class="btn btn-soft" data-action="open-new-campaign">📜 + New Campaign</button>
+        <button class="btn btn-primary" data-action="open-custom-quest">+ Add Custom Quest</button>
+      </div>
     </div>
 
     ${renderWeeklyBossCard(state, derived, false)}
+
+    ${renderCompanionSanctuaryCard(state, derived)}
+
+    ${renderStoryCampaignsSection(state, derived)}
 
     ${renderHeroArmorySection(state, derived)}
 

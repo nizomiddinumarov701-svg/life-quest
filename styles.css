@@ -4567,6 +4567,757 @@ select:focus-visible {
   flex-wrap: wrap;
 }
 
+/* ==========================================================================
+   RPG Expansion: Blacksmith Forge, Cozy Companion Pet & Story Campaigns
+   ========================================================================== */
+
+.page-head-actions,
+.armory-head-actions,
+.companion-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Masterwork ★ Gear Highlight */
+.gear-slot-card.is-masterwork,
+.inv-item-card.is-masterwork,
+.hero-gear-chip.is-masterwork,
+.forge-row.is-masterwork {
+  border-color: color-mix(in srgb, var(--accent-gold) 78%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent-gold) 24%, transparent);
+}
+
+/* Blacksmith Forge Modal */
+.shard-count-inline {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.forge-wallet-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.72rem 0.9rem;
+  border-radius: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 0.9rem;
+}
+
+.forge-currency-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.forge-currency-pill.is-shards strong {
+  color: #38bdf8;
+}
+
+.forge-currency-pill.is-gold strong {
+  color: var(--accent-gold);
+}
+
+.forge-earn-hint {
+  flex: 1 1 220px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.forge-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.24rem;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 0.9rem;
+}
+
+.forge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.forge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.78rem 0.9rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 7%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 32%, var(--border-subtle));
+}
+
+.forge-row-left {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.forge-item-ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.45rem;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 18%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 42%, transparent);
+}
+
+.forge-item-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.forge-item-name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+}
+
+.forge-equipped-tag,
+.forge-slot-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12rem 0.46rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-emerald) 16%, transparent);
+  color: var(--accent-emerald);
+}
+
+.forge-slot-tag {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+
+.forge-stat-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.forge-stat-arrow {
+  color: var(--text-muted);
+}
+
+.forge-stat-next {
+  color: var(--accent-gold);
+}
+
+.forge-max-tag,
+.forge-done-pill {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  padding: 0.28rem 0.62rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-gold) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 42%, transparent);
+  white-space: nowrap;
+}
+
+.forge-row-action {
+  flex-shrink: 0;
+}
+
+/* Cozy Companion Hero Chip & Sanctuary Card */
+.hero-companion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  padding: 0.24rem 0.64rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--pet-color, var(--accent-primary)) 15%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--pet-color, var(--accent-primary)) 45%, var(--border-subtle));
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.hero-companion-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--pet-color, var(--accent-primary)) 26%, transparent);
+}
+
+.hero-companion-chip.is-egg {
+  border-style: dashed;
+  color: var(--accent-gold);
+}
+
+.companion-chip-ico {
+  font-size: 0.96rem;
+  line-height: 1;
+}
+
+.companion-chip-perk {
+  color: var(--accent-gold);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.companion-card {
+  margin-bottom: 1.25rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--pet-color, var(--accent-primary)) 10%, var(--bg-card)) 0%,
+    var(--bg-card) 62%
+  );
+  border-color: color-mix(in srgb, var(--pet-color, var(--accent-primary)) 34%, var(--border-subtle));
+}
+
+.companion-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.75rem;
+}
+
+.companion-starter-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.88rem 0.95rem;
+  border-radius: 15px;
+  text-align: left;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--pet-color, var(--accent-primary)) 8%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--pet-color, var(--accent-primary)) 32%, var(--border-subtle));
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.companion-starter-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--pet-color, var(--accent-primary));
+}
+
+.companion-starter-ico {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.companion-starter-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.companion-starter-info p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.companion-perk-pill {
+  display: inline-block;
+  width: fit-content;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  background: color-mix(in srgb, var(--accent-gold) 14%, transparent);
+  padding: 0.12rem 0.48rem;
+  border-radius: 999px;
+}
+
+.companion-showcase {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.companion-avatar-orb {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 22px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--pet-color, var(--accent-primary)) 34%, transparent), var(--surface-elevated));
+  border: 2px solid color-mix(in srgb, var(--pet-color, var(--accent-primary)) 65%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--pet-color, var(--accent-primary)) 22%, transparent);
+  transition: transform 0.18s ease;
+}
+
+.companion-avatar-orb:hover {
+  transform: scale(1.06);
+}
+
+.companion-orb-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+  animation: floatGentle 3s ease-in-out infinite;
+}
+
+.fx-off .companion-orb-emoji {
+  animation: none;
+}
+
+.companion-stage-pill {
+  position: absolute;
+  bottom: -8px;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--pet-color, var(--accent-primary)) 60%, var(--border-subtle));
+}
+
+.companion-details {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.companion-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 1rem;
+}
+
+.companion-species-tag,
+.companion-mood-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.14rem 0.52rem;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.companion-quote {
+  margin: 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.companion-evo-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.companion-evo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.companion-evo-track {
+  height: 8px;
+}
+
+.companion-evo-fill {
+  background: linear-gradient(90deg, var(--pet-color, var(--accent-primary)), var(--accent-gold));
+}
+
+/* Companion Sanctuary Modal */
+.companion-modal-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--pet-color, var(--accent-primary)) 12%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--pet-color, var(--accent-primary)) 40%, var(--border-subtle));
+}
+
+.companion-modal-orb {
+  font-size: 2.3rem;
+  line-height: 1;
+}
+
+.companion-modal-summary {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.companion-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.companion-option-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  padding: 0.78rem 0.85rem;
+  border-radius: 14px;
+  cursor: pointer;
+  background: var(--surface-soft);
+  border: 1.5px solid var(--border-subtle);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.companion-option-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.companion-option-card.is-selected,
+.companion-option-card:has(input:checked) {
+  border-color: var(--pet-color, var(--accent-primary));
+  background: color-mix(in srgb, var(--pet-color, var(--accent-primary)) 12%, var(--surface-soft));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pet-color, var(--accent-primary)) 45%, transparent);
+}
+
+.companion-option-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.companion-option-ico {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.companion-option-desc {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.companion-evo-chain {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.95rem;
+  margin-top: auto;
+}
+
+.evo-arrow {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.companion-stages-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.stage-milestone-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 11px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.stage-milestone-pill strong {
+  color: var(--text-secondary);
+  font-size: 0.71rem;
+}
+
+.stage-milestone-pill.is-reached {
+  border-color: color-mix(in srgb, var(--accent-emerald) 48%, transparent);
+  background: color-mix(in srgb, var(--accent-emerald) 10%, var(--surface-soft));
+}
+
+.stage-milestone-pill.is-reached strong {
+  color: var(--accent-emerald);
+}
+
+/* Story Campaigns Board */
+.campaigns-card {
+  margin-bottom: 1.25rem;
+}
+
+.campaign-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+
+.campaign-quick-templates {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.campaigns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.95rem;
+}
+
+.campaign-item-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  padding: 1rem 1.05rem;
+  border-radius: 16px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--camp-color, #818cf8) 10%, var(--surface-soft)) 0%,
+    var(--surface-soft) 60%
+  );
+  border: 1px solid color-mix(in srgb, var(--camp-color, #818cf8) 34%, var(--border-subtle));
+}
+
+.campaign-item-card.is-victory-ready {
+  border-color: color-mix(in srgb, var(--accent-gold) 70%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent-gold) 16%, transparent);
+}
+
+.campaign-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.campaign-item-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.campaign-item-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--camp-color, #818cf8) 18%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--camp-color, #818cf8) 42%, transparent);
+}
+
+.campaign-item-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.campaign-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.campaign-skill-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.campaign-item-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.campaign-item-desc {
+  margin: 0;
+  font-size: 0.79rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.campaign-progress-track {
+  height: 8px;
+}
+
+.campaign-progress-fill {
+  background: linear-gradient(90deg, var(--camp-color, #818cf8), var(--accent-gold));
+}
+
+.campaign-chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.36rem;
+}
+
+.campaign-chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.48rem 0.62rem;
+  border-radius: 11px;
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.81rem;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.campaign-chapter-row:hover {
+  border-color: var(--camp-color, var(--accent-primary));
+}
+
+.campaign-chapter-row.is-done {
+  background: color-mix(in srgb, var(--accent-emerald) 10%, var(--surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-emerald) 34%, transparent);
+}
+
+.campaign-chapter-row.is-done .chapter-title {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.chapter-check-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.campaign-chapter-row.is-done .chapter-check-box {
+  background: var(--accent-emerald);
+  border-color: var(--accent-emerald);
+  color: #09131c;
+}
+
+.chapter-title {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.chapter-reward-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+
+.campaign-chapter-row.is-done .chapter-reward-tag {
+  color: var(--accent-emerald);
+}
+
+.campaign-victory-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  padding: 0.68rem 0.82rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-gold) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 48%, transparent);
+  font-size: 0.82rem;
+}
+
+.campaign-victory-sub {
+  font-size: 0.74rem;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.campaign-footer-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  padding-top: 0.15rem;
+}
+
+.campaign-trophies-shelf {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.campaign-trophy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.trophy-del-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 0.1rem;
+  line-height: 1;
+}
+
+.trophy-del-btn:hover {
+  color: var(--accent-rose);
+}
+
+.field-hint {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 @media (max-width: 1180px) {
   .top-nav-inner {
     padding: 0.62rem 0.9rem;
@@ -5070,6 +5821,22 @@ select:focus-visible {
   }
   .form-row-two {
     grid-template-columns: 1fr;
+  }
+
+  .campaigns-grid,
+  .companion-picker-grid {
+    grid-template-columns: 1fr;
+  }
+  .companion-stages-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .forge-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .forge-row-action .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   #toast-container {

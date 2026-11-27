@@ -5,6 +5,8 @@
 import {
   ATTRIBUTE_MAP,
   BOSS_DIFFICULTIES,
+  COMPANION_MAP,
+  FORGE_MAX_LEVEL,
   GEAR_MAP,
   GEAR_SLOTS,
   RPG_THEME_MAP,
@@ -147,6 +149,16 @@ export function createDefaultState() {
     unlockedThemes: ['twilight'],
     inventoryGear: [],
     equippedGear: { weapon: null, armor: null, relic: null, aura: null },
+    gearUpgrades: {},
+    shardLedger: [],
+    companion: {
+      species: null,
+      name: '',
+      adoptedAt: 0,
+      petsCount: 0,
+      updatedAt: 0,
+    },
+    campaigns: [],
     openedChestMilestones: [],
     purchasedChests: [],
     shieldPurchases: [],
@@ -225,6 +237,40 @@ export function createSampleAdventureState(now = Date.now()) {
   state.bonusLedger = [{ id: `bonus_quest_${sampleQuestId}`, xp: 75, gold: 23, reason: 'Sample Quest', timestamp: now - day }];
   state.bonusXp = 75;
   state.bonusGold = 23;
+  state.inventoryGear = [
+    { id: 'gear_sample_1', gearId: 'wpn_mech_blade', obtainedAt: now - 2 * day, source: 'Sample Chest' },
+    { id: 'gear_sample_2', gearId: 'arm_traveler_hoodie', obtainedAt: now - day, source: 'Sample Chest' },
+  ];
+  state.equippedGear = { weapon: 'wpn_mech_blade', armor: 'arm_traveler_hoodie', relic: null, aura: null };
+  state.gearUpgrades = { wpn_mech_blade: 1 };
+  state.shardLedger = [{ id: 'shard_sample_bonus', delta: 6, reason: 'Sample Forge Starter', timestamp: now - day }];
+  state.companion = {
+    species: 'fox',
+    name: 'Ember',
+    adoptedAt: now - 4 * day,
+    petsCount: 5,
+    updatedAt: now - day,
+  };
+  state.campaigns = [
+    {
+      id: 'camp_sample_1',
+      title: 'Ship My First RPG App',
+      icon: '🚀',
+      color: '#818cf8',
+      description: 'Take a real-life coding project from idea to live deployment.',
+      linkedActivityId: 'act_coding',
+      chapters: [
+        { id: 'ch_1', title: 'Design core MVP & data model', completed: true, completedAt: now - 3 * day },
+        { id: 'ch_2', title: 'Build working prototype', completed: true, completedAt: now - 2 * day },
+        { id: 'ch_3', title: 'Polish responsive mobile UI', completed: false, completedAt: 0 },
+        { id: 'ch_4', title: 'Write tests & deploy publicly', completed: false, completedAt: 0 },
+      ],
+      claimedVictory: false,
+      completedAt: 0,
+      createdAt: now - 4 * day,
+      updatedAt: now - 2 * day,
+    },
+  ];
   return state;
 }
 
@@ -456,6 +502,90 @@ export function sanitizeState(raw) {
         : null;
   }
 
+  const gearUpgrades = {};
+  if (raw.gearUpgrades && typeof raw.gearUpgrades === 'object') {
+    for (const [gearId, lv] of Object.entries(raw.gearUpgrades)) {
+      if (!GEAR_MAP[gearId]) continue;
+      const cleanLv = Math.max(0, Math.min(FORGE_MAX_LEVEL, Math.floor(Number(lv) || 0)));
+      if (cleanLv > 0) gearUpgrades[gearId] = cleanLv;
+    }
+  }
+
+  const shardLedgerMap = new Map();
+  if (Array.isArray(raw.shardLedger)) {
+    for (const e of raw.shardLedger) {
+      if (!e || typeof e.id !== 'string' || !e.id.trim()) continue;
+      const id = e.id.trim().slice(0, 96);
+      const delta = Math.max(-1000, Math.min(1000, Math.round(Number(e.delta) || 0)));
+      if (delta === 0) continue;
+      shardLedgerMap.set(id, {
+        id,
+        delta,
+        reason: typeof e.reason === 'string' ? e.reason.trim().slice(0, 64) : 'Forge',
+        timestamp: Number(e.timestamp) || Date.now(),
+      });
+    }
+  }
+  const shardLedger = Array.from(shardLedgerMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+  const rawComp = raw.companion && typeof raw.companion === 'object' ? raw.companion : {};
+  const validSpecies = typeof rawComp.species === 'string' && COMPANION_MAP[rawComp.species] ? rawComp.species : null;
+  const companion = {
+    species: validSpecies,
+    name:
+      typeof rawComp.name === 'string' && rawComp.name.trim()
+        ? rawComp.name.trim().slice(0, 24)
+        : validSpecies
+          ? COMPANION_MAP[validSpecies].defaultName
+          : '',
+    adoptedAt: validSpecies ? Math.max(0, Number(rawComp.adoptedAt) || 0) : 0,
+    petsCount: Math.max(0, Math.min(999999, Math.floor(Number(rawComp.petsCount) || 0))),
+    updatedAt: Math.max(0, Number(rawComp.updatedAt) || 0),
+  };
+
+  const campaigns = Array.isArray(raw.campaigns)
+    ? raw.campaigns
+        .filter((c) => c && typeof c.id === 'string' && typeof c.title === 'string' && c.title.trim())
+        .map((c) => {
+          const seenChIds = new Set();
+          const chapters = Array.isArray(c.chapters)
+            ? c.chapters
+                .filter((ch) => ch && typeof ch.title === 'string' && ch.title.trim())
+                .slice(0, 12)
+                .map((ch, idx) => {
+                  let chId = typeof ch.id === 'string' && ch.id.trim() ? ch.id.trim().slice(0, 64) : `ch_${idx + 1}`;
+                  while (seenChIds.has(chId)) chId = `${chId}_${idx + 1}`;
+                  seenChIds.add(chId);
+                  return {
+                    id: chId,
+                    title: ch.title.trim().slice(0, 80),
+                    completed: Boolean(ch.completed),
+                    completedAt: ch.completed ? Number(ch.completedAt) || Date.now() : 0,
+                  };
+                })
+            : [];
+          const cleanColor =
+            typeof c.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.color) ? c.color : '#818cf8';
+          return {
+            id: c.id.trim().slice(0, 64),
+            title: c.title.trim().slice(0, 64),
+            icon: typeof c.icon === 'string' && c.icon.trim() ? c.icon.trim().slice(0, 6) : '📜',
+            color: cleanColor,
+            description: typeof c.description === 'string' ? c.description.trim().slice(0, 140) : '',
+            linkedActivityId:
+              typeof c.linkedActivityId === 'string' && validActivityIds.has(c.linkedActivityId)
+                ? c.linkedActivityId
+                : null,
+            chapters,
+            claimedVictory: Boolean(c.claimedVictory),
+            completedAt: Number(c.completedAt) || 0,
+            createdAt: Number(c.createdAt) || Date.now(),
+            updatedAt: Number(c.updatedAt) || Number(c.createdAt) || Date.now(),
+          };
+        })
+        .filter((c) => c.chapters.length > 0)
+    : [];
+
   const openedChestMilestones = Array.isArray(raw.openedChestMilestones)
     ? Array.from(new Set(raw.openedChestMilestones.filter((id) => typeof id === 'string')))
     : [];
@@ -465,7 +595,7 @@ export function sanitizeState(raw) {
         .filter((c) => c && typeof c.id === 'string')
         .map((c) => ({
           id: c.id,
-          tier: c.tier === 'standard' || c.tier === 'sprint' || c.tier === 'boss' ? c.tier : 'boss',
+          tier: c.tier === 'standard' || c.tier === 'sprint' || c.tier === 'boss' || c.tier === 'campaign' ? c.tier : 'boss',
           purchasedAt: Number(c.purchasedAt) || Date.now(),
         }))
     : [];
@@ -507,6 +637,10 @@ export function sanitizeState(raw) {
     unlockedThemes,
     inventoryGear,
     equippedGear,
+    gearUpgrades,
+    shardLedger,
+    companion,
+    campaigns,
     openedChestMilestones,
     purchasedChests,
     shieldPurchases,

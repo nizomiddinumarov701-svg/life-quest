@@ -16,6 +16,7 @@ import {
 import { renderAttributeRadarSvg } from '../charts.js';
 import { esc, formatRelativeTime } from './helpers.js';
 import { renderQuestRow, renderWeeklyBossCard } from './quests.js';
+import { renderCompanionHeroChip } from './rpgExtras.js';
 
 /**
  * Sticky Live Timer Bar (appears whenever a timer is active or paused).
@@ -342,29 +343,24 @@ function renderHeroBanner(state, derived) {
             </div>
           </div>
 
-          ${
-            pendingChests.length > 0 || gear.equippedList.length > 0
-              ? `
-            <div class="hero-gear-strip">
-              ${
-                pendingChests.length > 0
-                  ? `
-                <button type="button" class="btn btn-gold btn-xs hero-chest-cta pulse-glow" data-action="open-next-chest" title="Open your earned RPG Loot Chest!">
-                  🎁 Open Loot Chest (${pendingChests.length})
-                </button>
-              `
-                  : ''
-              }
-              ${gear.equippedList
-                .map((item) => {
-                  const rm = RARITY_META[item.rarity] || RARITY_META.common;
-                  return `<button type="button" class="hero-gear-chip rarity-${esc(item.rarity)}" style="--rarity-color: ${esc(rm.color)}" data-action="switch-tab" data-tab="quests" title="${esc(item.name)} (${esc(rm.label)}) · ${esc(item.bonusText)}">${esc(item.icon)} ${esc(item.name)}</button>`;
-                })
-                .join('')}
-            </div>
-          `
-              : ''
-          }
+          <div class="hero-gear-strip">
+            ${renderCompanionHeroChip(derived.companion)}
+            ${
+              pendingChests.length > 0
+                ? `
+              <button type="button" class="btn btn-gold btn-xs hero-chest-cta pulse-glow" data-action="open-next-chest" title="Open your earned RPG Loot Chest!">
+                🎁 Open Loot Chest (${pendingChests.length})
+              </button>
+            `
+                : ''
+            }
+            ${gear.equippedList
+              .map((item) => {
+                const rm = RARITY_META[item.rarity] || RARITY_META.common;
+                return `<button type="button" class="hero-gear-chip rarity-${esc(item.rarity)} ${item.isMasterwork ? 'is-masterwork' : ''}" style="--rarity-color: ${esc(rm.color)}" data-action="switch-tab" data-tab="quests" title="${esc(item.displayName || item.name)} (${esc(rm.label)}) · ${esc(item.bonusText)}">${esc(item.icon)} ${esc(item.displayName || item.name)}</button>`;
+              })
+              .join('')}
+          </div>
         </div>
       </div>
 

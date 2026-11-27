@@ -26,6 +26,7 @@ const APP_SHELL_ASSETS = [
   './src/views/helpers.js',
   './src/views/modals.js',
   './src/views/quests.js',
+  './src/views/rpgExtras.js',
   './src/views/shop.js',
   './src/views/stats.js',
 ];

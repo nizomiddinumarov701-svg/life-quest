@@ -157,6 +157,12 @@ test('All LifeQuest modals render cleanly and satisfy security & regression inva
     ],
     ['reward-create', { type: 'reward' }, syncDisconnected],
     ['reward-edit', { type: 'reward', rewardId: state.rewards[0].id }, syncDisconnected],
+    ['forge-upgrade', { type: 'forge', tab: 'upgrade' }, syncDisconnected],
+    ['forge-craft', { type: 'forge', tab: 'craft' }, syncDisconnected],
+    ['companion', { type: 'companion' }, syncDisconnected],
+    ['campaign-create', { type: 'campaign' }, syncDisconnected],
+    ['campaign-template', { type: 'campaign', templateId: 'study' }, syncDisconnected],
+    ['campaign-edit', { type: 'campaign', campaignId: state.campaigns[0].id }, syncDisconnected],
     ['sync-disconnected', { type: 'sync' }, syncDisconnected],
     ['sync-connected', { type: 'sync' }, syncConnected],
   ];
@@ -191,6 +197,9 @@ test('UI rendering escapes untrusted user input against XSS across views', () =>
   state.profile.name = xssPayload;
   state.activities[0].name = xssPayload;
   state.rewards[0].title = xssPayload;
+  state.companion.name = xssPayload;
+  state.campaigns[0].title = xssPayload;
+  state.campaigns[0].chapters[0].title = xssPayload;
 
   const derived = computeDerivedState(state, now);
   const uiState = {
@@ -205,8 +214,10 @@ test('UI rendering escapes untrusted user input against XSS across views', () =>
   };
 
   const dashHtml = renderDashboardView(state, derived, uiState, null);
+  const questsHtml = renderQuestsAndBadgesView(state, derived);
   const shopHtml = renderShopView(state, derived);
   assert.ok(!dashHtml.includes('<script>evil()</script>'), 'Dashboard must escape raw <script> tags');
   assert.ok(!dashHtml.includes('onerror="alert(1)"'), 'Dashboard must escape raw HTML attributes');
+  assert.ok(!questsHtml.includes('<script>evil()</script>'), 'Quests/Campaigns/Companion must escape raw <script> tags');
   assert.ok(!shopHtml.includes('<script>evil()</script>'), 'Shop must escape raw <script> tags');
 });

@@ -12,9 +12,22 @@ import {
 } from '../rpgEngine.js';
 import { GITHUB_TOKEN_CREATE_URL } from '../sync.js';
 import { PLAYER_AVATARS, esc, formatRelativeTime } from './helpers.js';
+import { renderCampaignModal, renderCompanionModal, renderForgeModal } from './rpgExtras.js';
 
 export function renderModal(modalState, state, syncInfo = null, derived = null) {
   if (!modalState) return '';
+
+  if (modalState.type === 'forge') {
+    return renderForgeModal(state, derived || {}, modalState);
+  }
+
+  if (modalState.type === 'companion') {
+    return renderCompanionModal(state, derived || {});
+  }
+
+  if (modalState.type === 'campaign') {
+    return renderCampaignModal(state, modalState);
+  }
 
   if (modalState.type === 'themes') {
     const themes = (derived && derived.themes) || [];
@@ -95,7 +108,7 @@ export function renderModal(modalState, state, syncInfo = null, derived = null) 
           <p class="levelup-sub">${esc(gear ? gear.lore : '')}</p>
           ${
             p.isDuplicate
-              ? `<div class="chest-dup-note">✨ Already owned — dismantled duplicate for <strong>+${p.duplicateGold}g 🪙</strong>!</div>`
+              ? `<div class="chest-dup-note">✨ Already owned — dismantled duplicate for <strong>+${p.duplicateGold}g 🪙</strong>${p.duplicateShards ? ` &amp; <strong>+${p.duplicateShards} 💠 Forge Shards</strong>` : ''}!</div>`
               : ''
           }
           <div class="chest-reveal-actions">

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  GEAR_MAP,
   MAX_GEAR_XP_BONUS_PCT,
   REFUND_WINDOW_MS,
   calculateBossDamageForSession,
@@ -10,7 +11,10 @@ import {
   calculateStreak,
   computeActivityHeatmap,
   computeAutoShieldDates,
+  computeCampaignSummary,
+  computeCompanionState,
   computeDerivedState,
+  computeForgeSummary,
   computeGearBonuses,
   computeHeroClass,
   computeWeeklyBoss,
@@ -22,6 +26,7 @@ import {
   getPendingLootChests,
   getPlayerLevelInfo,
   getRewardCooldownInfo,
+  getScaledGearItem,
   getThemeStatusList,
   isRedemptionRefundable,
   rollLootChest,
@@ -712,4 +717,172 @@ test('Tavern reward refunds enforce the 10-minute grace window', () => {
   assert.equal(isRedemptionRefundable({ id: 'r1', redeemedAt: now - 2 * 60 * 1000 }, now), true);
   assert.equal(isRedemptionRefundable({ id: 'r2', redeemedAt: now - REFUND_WINDOW_MS }, now), true);
   assert.equal(isRedemptionRefundable({ id: 'r3', redeemedAt: now - REFUND_WINDOW_MS - 1000 }, now), false);
+});
+
+test('Blacksmith Forge scales upgraded gear to Masterwork, tracks Shards, and merges monotonically', () => {
+  const base = GEAR_MAP.wpn_cyberdeck; // +9% Craft XP · +4% Sprint
+  const lv1 = getScaledGearItem(base, 1);
+  const lv3 = getScaledGearItem(base, 3);
+  assert.equal(lv1.displayName, 'Neon Cyberdeck +1');
+  assert.ok(lv1.bonus.attrXp.craft > base.bonus.attrXp.craft);
+  assert.ok(lv1.bonus.sprintBonusPct > base.bonus.sprintBonusPct);
+  assert.equal(lv3.isMasterwork, true);
+  assert.equal(lv3.displayName, 'Neon Cyberdeck ★');
+  assert.ok(lv3.bonus.attrXp.craft > lv1.bonus.attrXp.craft);
+
+  // Forge Shard balance counts Hero Levels (Lv.6 -> 3*3=9), Boss Trophies (+6), and shardLedger
+  const state = createDefaultState();
+  state.bossTrophies = [{ weekKey: 'week-2026-11-23', bossId: 'wyrm', bossName: 'Wyrm', bossIcon: '🐉', maxHp: 300, defeatedAt: Date.now() }];
+  state.shardLedger = [
+    { id: 'shard_dup_1', delta: 4, reason: 'Duplicate Rare', timestamp: 1000 },
+    { id: 'shard_upg_1', delta: -3, reason: 'Tempered +1', timestamp: 2000 },
+  ];
+  const forge = computeForgeSummary(state, 6);
+  assert.equal(forge.levelShards, 9);
+  assert.equal(forge.bossShards, 6);
+  assert.equal(forge.balance, 9 + 6 + 4 - 3);
+
+  // Equipped upgraded gear flows into computeGearBonuses
+  state.inventoryGear = [{ id: 'g1', gearId: 'wpn_cyberdeck', obtainedAt: 1000, source: 'Forge' }];
+  state.equippedGear = { weapon: 'wpn_cyberdeck', armor: null, relic: null, aura: null };
+  state.gearUpgrades = { wpn_cyberdeck: 3 };
+  const bonuses = computeGearBonuses(state.equippedGear, state.inventoryGear, state.gearUpgrades);
+  assert.equal(bonuses.attrXp.craft, lv3.bonus.attrXp.craft);
+  assert.equal(bonuses.equippedItems.weapon.isMasterwork, true);
+
+  // Duplicate roll returns duplicateShards
+  const allIds = Object.keys(GEAR_MAP);
+  const dupDrop = rollLootChest({ tier: 'boss', ownedGearIds: allIds });
+  assert.equal(dupDrop.isDuplicate, true);
+  assert.ok(dupDrop.duplicateShards >= 4);
+
+  // Cloud sync merges upgrades monotonically & unions shardLedger
+  const pc = createDefaultState();
+  pc.gearUpgrades = { wpn_cyberdeck: 2 };
+  pc.shardLedger = [{ id: 's_pc', delta: 4, reason: 'PC', timestamp: 100 }];
+  const phone = createDefaultState();
+  phone.gearUpgrades = { wpn_cyberdeck: 1, rel_compass: 3 };
+  phone.shardLedger = [{ id: 's_ph', delta: 8, reason: 'Phone', timestamp: 200 }];
+  const merged = mergeStates(pc, phone);
+  assert.equal(merged.gearUpgrades.wpn_cyberdeck, 2);
+  assert.equal(merged.gearUpgrades.rel_compass, 3);
+  assert.equal(merged.shardLedger.length, 2);
+});
+
+test('Cozy Companion Pet evolves across 4 stages, reacts to focus state, and merges cleanly', () => {
+  const unadopted = computeCompanionState(null, { totalSeconds: 0 });
+  assert.equal(unadopted.adopted, false);
+
+  const stage1 = computeCompanionState(
+    { species: 'owl', name: 'Athena', petsCount: 2 },
+    { totalSeconds: 1800, longestStreak: 1, streak: { current: 1 }, todaySeconds: 1800, isTimerRunning: false }
+  );
+  assert.equal(stage1.adopted, true);
+  assert.equal(stage1.stage, 1);
+  assert.equal(stage1.bonus.allXpPct, 2);
+  assert.equal(stage1.mood, 'happy');
+
+  const stage3 = computeCompanionState(
+    { species: 'owl', name: 'Athena', petsCount: 9 },
+    { totalSeconds: 16 * 3600, longestStreak: 4, streak: { current: 4 }, todaySeconds: 0, isTimerRunning: true }
+  );
+  assert.equal(stage3.stage, 3);
+  assert.equal(stage3.bonus.allXpPct, 4);
+  assert.equal(stage3.mood, 'focused');
+
+  const stage4ByStreak = computeCompanionState(
+    { species: 'drake', name: 'Cinder', petsCount: 15 },
+    { totalSeconds: 10 * 3600, longestStreak: 14, streak: { current: 14 }, todaySeconds: 600, isTimerRunning: false }
+  );
+  assert.equal(stage4ByStreak.stage, 4);
+  assert.equal(stage4ByStreak.bonus.bossDmgPct, 12);
+
+  // Companion merge never wipes an adopted pet with an empty local slot
+  const emptyLocal = createDefaultState();
+  const remoteWithPet = createDefaultState();
+  remoteWithPet.companion = { species: 'cat', name: 'Mochi', adoptedAt: 5000, petsCount: 7, updatedAt: 6000 };
+  const merged = mergeStates(emptyLocal, remoteWithPet);
+  assert.equal(merged.companion.species, 'cat');
+  assert.equal(merged.companion.name, 'Mochi');
+  assert.equal(merged.companion.petsCount, 7);
+});
+
+test('Story Campaigns track chapters, drop Epic+ Victory Chests, and union progress across devices', () => {
+  const now = Date.now();
+  const state = createDefaultState();
+  state.campaigns = [
+    {
+      id: 'camp_cert',
+      title: 'Security Cert Arc',
+      icon: '🎓',
+      color: '#818cf8',
+      description: 'Finish all modules',
+      linkedActivityId: 'act_reading',
+      chapters: [
+        { id: 'c1', title: 'Basics', completed: true, completedAt: now - 3000 },
+        { id: 'c2', title: 'Labs', completed: true, completedAt: now - 2000 },
+        { id: 'c3', title: 'Exam', completed: true, completedAt: now - 1000 },
+      ],
+      claimedVictory: false,
+      completedAt: 0,
+      createdAt: now - 5000,
+      updatedAt: now - 1000,
+    },
+  ];
+
+  const beforeClaim = computeCampaignSummary(state.campaigns);
+  assert.equal(beforeClaim.claimableCount, 1);
+  assert.equal(beforeClaim.items[0].canClaimVictory, true);
+  assert.equal(beforeClaim.items[0].earnsEpicChest, true);
+
+  // After claiming victory, a guaranteed Epic+ campaign chest appears in pendingChests
+  state.campaigns[0].claimedVictory = true;
+  const chests = getPendingLootChests(state, 1);
+  const campChest = chests.find((c) => c.id === 'chest-camp-camp_cert');
+  assert.ok(campChest && campChest.tier === 'campaign');
+
+  // Campaign tier chest NEVER rolls Common or Rare
+  for (let i = 0; i < 25; i++) {
+    const drop = rollLootChest({ tier: 'campaign', ownedGearIds: [] });
+    assert.ok(drop.gear.rarity === 'epic' || drop.gear.rarity === 'legendary');
+  }
+
+  // Multi-device merge unions chapter completion from PC and Phone
+  const pc = createDefaultState();
+  pc.campaigns = [
+    {
+      id: 'camp_sync',
+      title: 'Portfolio',
+      icon: '💻',
+      color: '#fbbf24',
+      description: '',
+      linkedActivityId: null,
+      chapters: [
+        { id: 'ch1', title: 'Step 1', completed: true, completedAt: now },
+        { id: 'ch2', title: 'Step 2', completed: false, completedAt: 0 },
+        { id: 'ch3', title: 'Step 3', completed: false, completedAt: 0 },
+      ],
+      claimedVictory: false,
+      completedAt: 0,
+      createdAt: now - 1000,
+      updatedAt: now,
+    },
+  ];
+  const phone = createDefaultState();
+  phone.campaigns = [
+    {
+      ...pc.campaigns[0],
+      chapters: [
+        { id: 'ch1', title: 'Step 1', completed: false, completedAt: 0 },
+        { id: 'ch2', title: 'Step 2', completed: true, completedAt: now + 500 },
+        { id: 'ch3', title: 'Step 3', completed: false, completedAt: 0 },
+      ],
+      updatedAt: now + 500,
+    },
+  ];
+  const merged = mergeStates(pc, phone);
+  assert.equal(merged.campaigns.length, 1);
+  assert.equal(merged.campaigns[0].chapters[0].completed, true);
+  assert.equal(merged.campaigns[0].chapters[1].completed, true);
+  assert.equal(merged.campaigns[0].chapters[2].completed, false);
 });

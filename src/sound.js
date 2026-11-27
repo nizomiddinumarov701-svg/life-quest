@@ -121,6 +121,25 @@ class SoundEngine {
     this.playTone(659.25, 0.07, 0.28, 'sine', 0.07);
     this.playTone(783.99, 0.14, 0.36, 'triangle', 0.075);
   }
+
+  playForgeHammer() {
+    this.playTone(311.13, 0, 0.09, 'sawtooth', 0.055);
+    this.playTone(1244.51, 0.015, 0.28, 'triangle', 0.075);
+    this.playTone(1864.66, 0.04, 0.36, 'sine', 0.055);
+  }
+
+  playPetHappy() {
+    this.playTone(659.25, 0, 0.09, 'sine', 0.065);
+    this.playTone(880.0, 0.07, 0.11, 'sine', 0.07);
+    this.playTone(1046.5, 0.14, 0.18, 'triangle', 0.06);
+  }
+
+  playCampaignVictory() {
+    const notes = [440.0, 554.37, 659.25, 880.0, 1108.73, 1318.51];
+    notes.forEach((n, idx) => {
+      this.playTone(n, idx * 0.08, idx === notes.length - 1 ? 0.6 : 0.2, 'triangle', 0.085);
+    });
+  }
 }
 
 export const sound = new SoundEngine();

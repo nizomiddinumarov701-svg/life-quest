@@ -111,11 +111,170 @@ export const GEAR_SLOTS = [
 ];
 
 export const RARITY_META = {
-  common: { id: 'common', label: 'Common', color: '#94a3b8', duplicateGold: 45 },
-  rare: { id: 'rare', label: 'Rare', color: '#38bdf8', duplicateGold: 85 },
-  epic: { id: 'epic', label: 'Epic', color: '#c084fc', duplicateGold: 145 },
-  legendary: { id: 'legendary', label: 'Legendary', color: '#fbbf24', duplicateGold: 240 },
+  common: { id: 'common', label: 'Common', color: '#94a3b8', duplicateGold: 45, duplicateShards: 2 },
+  rare: { id: 'rare', label: 'Rare', color: '#38bdf8', duplicateGold: 85, duplicateShards: 4 },
+  epic: { id: 'epic', label: 'Epic', color: '#c084fc', duplicateGold: 145, duplicateShards: 8 },
+  legendary: { id: 'legendary', label: 'Legendary', color: '#fbbf24', duplicateGold: 240, duplicateShards: 15 },
 };
+
+/**
+ * Blacksmith Forge — Upgrade owned gear (+1, +2, +3 Masterwork ★) & craft missing gear
+ */
+export const FORGE_MAX_LEVEL = 3;
+export const FORGE_BOSS_SHARDS = 6;
+export const FORGE_LEVEL_STEP_SHARDS = 3; // +3 shards every 2 Hero Levels (Lv.2, 4, 6...)
+
+export const FORGE_UPGRADE_TIERS = {
+  1: { level: 1, label: '+1 Tempered', shortTag: '+1', multiplier: 1.25, shards: 3, gold: 120 },
+  2: { level: 2, label: '+2 Runeforged', shortTag: '+2', multiplier: 1.5, shards: 6, gold: 260 },
+  3: { level: 3, label: '+3 Masterwork ★', shortTag: '★', multiplier: 1.8, shards: 10, gold: 450 },
+};
+
+export const FORGE_CRAFT_COSTS = {
+  common: { shards: 4, gold: 150 },
+  rare: { shards: 8, gold: 320 },
+  epic: { shards: 14, gold: 600 },
+  legendary: { shards: 24, gold: 1100 },
+};
+
+/**
+ * Cozy Companion Pets — 4 starter species, 4 evolution stages, cozy passive perks
+ */
+export const COMPANION_STAGES = [
+  { stage: 1, label: 'Hatchling', minHours: 0, minStreak: 0 },
+  { stage: 2, label: 'Young Familiar', minHours: 5, minStreak: 3 },
+  { stage: 3, label: 'Ascended Ally', minHours: 15, minStreak: 7 },
+  { stage: 4, label: 'Mythic Guardian', minHours: 40, minStreak: 14 },
+];
+
+export const COMPANION_CATALOG = [
+  {
+    id: 'fox',
+    defaultName: 'Ember',
+    speciesName: 'Ember Fox',
+    color: '#fb923c',
+    desc: 'A warm hearth-spark fox who cheers hardest during Focus Sprints.',
+    stageIcons: ['🦊', '🦊', '🔥', '🌟'],
+    stageTitles: ['Ember Kit', 'Hearth Fox', 'Blaze Vulpine', 'Solar Kitsune'],
+    perkType: 'sprintBonusPct',
+    perkLabel: 'Sprint Bonus',
+    stageValues: [3, 4, 5, 6],
+  },
+  {
+    id: 'owl',
+    defaultName: 'Pip',
+    speciesName: 'Scholar Owl',
+    color: '#818cf8',
+    desc: 'A wise lantern-eyed owl who boosts XP across every single skill.',
+    stageIcons: ['🦉', '🦉', '📜', '🌌'],
+    stageTitles: ['Owlet', 'Archive Owl', 'Runic Strix', 'Astral Sage Owl'],
+    perkType: 'allXpPct',
+    perkLabel: 'All XP',
+    stageValues: [2, 3, 4, 5],
+  },
+  {
+    id: 'drake',
+    defaultName: 'Cinder',
+    speciesName: 'Pocket Drake',
+    color: '#f43f5e',
+    desc: 'A fierce mini-dragon who breathes extra damage onto Weekly Bosses.',
+    stageIcons: ['🦎', '🐉', '🐉', '👑'],
+    stageTitles: ['Drake Hatchling', 'Ember Wyrmling', 'Skyscale Drake', 'Sovereign Dragon'],
+    perkType: 'bossDmgPct',
+    perkLabel: 'Boss DMG',
+    stageValues: [4, 6, 9, 12],
+  },
+  {
+    id: 'cat',
+    defaultName: 'Mochi',
+    speciesName: 'Tavern Cat',
+    color: '#fbbf24',
+    desc: 'A lucky calico who bats extra Gold coins into your Tavern purse.',
+    stageIcons: ['🐱', '🐱', '🐾', '🪙'],
+    stageTitles: ['Tavern Kitten', 'Lucky Calico', 'Guild Purr-master', 'Golden Neko'],
+    perkType: 'goldPct',
+    perkLabel: 'Bonus Gold',
+    stageValues: [3, 4, 6, 8],
+  },
+];
+
+export const COMPANION_MAP = Object.fromEntries(COMPANION_CATALOG.map((c) => [c.id, c]));
+
+/**
+ * Story Campaigns — Multi-chapter real-life epic quests & trophies
+ */
+export const CAMPAIGN_CHAPTER_XP = 60;
+export const CAMPAIGN_CHAPTER_GOLD = 25;
+export const CAMPAIGN_CHAPTER_SHARDS = 1;
+export const CAMPAIGN_VICTORY_XP = 350;
+export const CAMPAIGN_VICTORY_GOLD = 200;
+export const CAMPAIGN_VICTORY_SHARDS = 5;
+export const CAMPAIGN_SHORT_VICTORY_XP = 150;
+export const CAMPAIGN_SHORT_VICTORY_GOLD = 80;
+export const CAMPAIGN_SHORT_VICTORY_SHARDS = 2;
+export const CAMPAIGN_MIN_CHAPTERS_FOR_CHEST = 3;
+
+export const CAMPAIGN_ICONS = ['📜', '🏰', '🗺️', '⚔️', '💻', '📚', '🏋️', '🎓', '🚀', '🎨', '🧠', '🏆'];
+
+export const CAMPAIGN_TEMPLATES = [
+  {
+    id: 'study',
+    label: '🎓 Certification / Study Arc',
+    icon: '🎓',
+    color: '#818cf8',
+    title: 'Certification Mastery Arc',
+    description: 'Conquer a course, exam, or technical path one chapter at a time.',
+    chapters: [
+      'Complete core fundamentals & notes',
+      'Finish hands-on practice labs',
+      'Review weak topics & flashcards',
+      'Score 85%+ on a timed mock test',
+      'Pass the final challenge / exam',
+    ],
+  },
+  {
+    id: 'project',
+    label: '💻 Coding Project Arc',
+    icon: '💻',
+    color: '#fbbf24',
+    title: 'Ship a Real Project',
+    description: 'Take an idea from blank repo to deployed live release.',
+    chapters: [
+      'Design MVP scope & architecture',
+      'Build core working prototype',
+      'Polish UI & fix edge-case bugs',
+      'Write tests & deploy publicly',
+    ],
+  },
+  {
+    id: 'fitness',
+    label: '🏋️ Fitness Milestone Arc',
+    icon: '🏋️',
+    color: '#34d399',
+    title: '30-Day Strength & Stamina Arc',
+    description: 'Level up real-world Body stats with steady weekly milestones.',
+    chapters: [
+      'Complete Week 1 workouts (3+ sessions)',
+      'Complete Week 2 & improve form/reps',
+      'Complete Week 3 without breaking rhythm',
+      'Hit personal milestone in Week 4',
+    ],
+  },
+  {
+    id: 'reading',
+    label: '📚 Reading Saga',
+    icon: '📚',
+    color: '#38bdf8',
+    title: 'Finish a Tough Book',
+    description: 'Read consistently and capture takeaways that stick.',
+    chapters: [
+      'Finish Part 1 (25%) & highlight gems',
+      'Reach the midpoint (50%)',
+      'Push through Part 3 (75%)',
+      'Finish final chapter & write 5 takeaways',
+    ],
+  },
+];
 
 export const GEAR_CATALOG = [
   // Weapons / Tools
@@ -1224,9 +1383,251 @@ export function computeDailySeries(sessions, days = 7, now = Date.now()) {
 }
 
 /**
- * Aggregate passive RPG buffs from currently equipped gear.
+ * Format bonus tags array from a bonus object.
  */
-export function computeGearBonuses(equippedGear = {}, inventoryGear = []) {
+export function formatGearBonusText(bonus = {}) {
+  const parts = [];
+  if (bonus.attrXp) {
+    for (const a of ATTRIBUTES) {
+      const pct = Number(bonus.attrXp[a.id]) || 0;
+      if (pct > 0) parts.push(`+${pct}% ${a.label} XP`);
+    }
+  }
+  if (Number(bonus.allXpPct) > 0) parts.push(`+${bonus.allXpPct}% All XP`);
+  if (Number(bonus.sprintBonusPct) > 0) parts.push(`+${bonus.sprintBonusPct}% Sprint`);
+  if (Number(bonus.goldPct) > 0) parts.push(`+${bonus.goldPct}% Gold`);
+  if (Number(bonus.bossDmgPct) > 0) parts.push(`+${bonus.bossDmgPct}% Boss DMG`);
+  return parts.join(' · ');
+}
+
+/**
+ * Return a gear item with Blacksmith Forge upgrade scaling applied (+0..+3 Masterwork ★).
+ */
+export function getScaledGearItem(gearDef, forgeLevel = 0) {
+  if (!gearDef) return null;
+  const lv = Math.max(0, Math.min(FORGE_MAX_LEVEL, Math.floor(Number(forgeLevel) || 0)));
+  const tier = FORGE_UPGRADE_TIERS[lv] || null;
+  const mult = tier ? tier.multiplier : 1;
+
+  const scaleVal = (base) => {
+    const n = Number(base) || 0;
+    if (n <= 0 || lv === 0) return n;
+    return Math.max(n + lv, Math.round(n * mult));
+  };
+
+  const baseBonus = gearDef.bonus || {};
+  const scaledBonus = {};
+  if (baseBonus.allXpPct) scaledBonus.allXpPct = scaleVal(baseBonus.allXpPct);
+  if (baseBonus.goldPct) scaledBonus.goldPct = scaleVal(baseBonus.goldPct);
+  if (baseBonus.bossDmgPct) scaledBonus.bossDmgPct = scaleVal(baseBonus.bossDmgPct);
+  if (baseBonus.sprintBonusPct) scaledBonus.sprintBonusPct = scaleVal(baseBonus.sprintBonusPct);
+  if (baseBonus.attrXp) {
+    scaledBonus.attrXp = {};
+    for (const [k, v] of Object.entries(baseBonus.attrXp)) {
+      if (Number(v) > 0) scaledBonus.attrXp[k] = scaleVal(v);
+    }
+  }
+
+  const bonusText = lv === 0 ? gearDef.bonusText : formatGearBonusText(scaledBonus);
+  const shortTag = tier ? tier.shortTag : '';
+  return {
+    ...gearDef,
+    forgeLevel: lv,
+    isMasterwork: lv >= FORGE_MAX_LEVEL,
+    forgeTag: shortTag,
+    displayName: shortTag ? `${gearDef.name} ${shortTag}` : gearDef.name,
+    bonus: scaledBonus,
+    bonusText,
+  };
+}
+
+/**
+ * Compute Blacksmith Forge Shard balance from Hero Level milestones, Boss Trophies & conflict-free shardLedger.
+ */
+export function computeForgeSummary(state, playerLevel = 1) {
+  const levelSteps = Math.floor(Math.max(1, Number(playerLevel) || 1) / 2);
+  const levelShards = levelSteps * FORGE_LEVEL_STEP_SHARDS;
+  const bossShards = (state && Array.isArray(state.bossTrophies) ? state.bossTrophies.length : 0) * FORGE_BOSS_SHARDS;
+
+  let ledgerEarned = 0;
+  let ledgerSpent = 0;
+  for (const entry of (state && Array.isArray(state.shardLedger) ? state.shardLedger : [])) {
+    if (!entry) continue;
+    const d = Math.round(Number(entry.delta) || 0);
+    if (d > 0) ledgerEarned += d;
+    else if (d < 0) ledgerSpent += Math.abs(d);
+  }
+
+  const totalEarned = levelShards + bossShards + ledgerEarned;
+  const balance = Math.max(0, totalEarned - ledgerSpent);
+
+  return {
+    balance,
+    totalEarned,
+    totalSpent: ledgerSpent,
+    levelShards,
+    bossShards,
+    ledgerEarned,
+  };
+}
+
+/**
+ * Compute Cozy Companion Pet stage, mood, passive perk & evolution progress.
+ */
+export function computeCompanionState(
+  companionRaw = null,
+  { totalSeconds = 0, longestStreak = 0, streak = null, todaySeconds = 0, isTimerRunning = false } = {}
+) {
+  const speciesId = companionRaw && COMPANION_MAP[companionRaw.species] ? companionRaw.species : null;
+  if (!speciesId) {
+    return {
+      adopted: false,
+      species: null,
+      name: '',
+      def: null,
+      stageIndex: 0,
+      stage: 1,
+      stageLabel: 'Waiting to Hatch',
+      stageTitle: 'Mystery Egg',
+      stageIcon: '🥚',
+      nextStage: COMPANION_STAGES[1],
+      progressPercent: 0,
+      mood: 'waiting',
+      moodBadge: '🥚 Waiting',
+      moodQuote: 'Pick a cozy RPG companion to join your adventures!',
+      bonus: {},
+      bonusText: '',
+      petsCount: 0,
+    };
+  }
+
+  const def = COMPANION_MAP[speciesId];
+  const totalHours = Math.max(0, (Number(totalSeconds) || 0) / 3600);
+  const bestStreak = Math.max(0, Number(longestStreak) || 0);
+
+  let stageIndex = 0;
+  for (let i = 0; i < COMPANION_STAGES.length; i++) {
+    const req = COMPANION_STAGES[i];
+    if (totalHours >= req.minHours || (req.minStreak > 0 && bestStreak >= req.minStreak)) {
+      stageIndex = i;
+    }
+  }
+
+  const curStage = COMPANION_STAGES[stageIndex];
+  const nextStage = COMPANION_STAGES[stageIndex + 1] || null;
+  let progressPercent = 100;
+  if (nextStage) {
+    const hourPct = nextStage.minHours > 0 ? Math.min(100, (totalHours / nextStage.minHours) * 100) : 0;
+    const streakPct = nextStage.minStreak > 0 ? Math.min(100, (bestStreak / nextStage.minStreak) * 100) : 0;
+    progressPercent = Math.round(Math.max(hourPct, streakPct));
+  }
+
+  const perkVal = def.stageValues[stageIndex] || def.stageValues[0];
+  const bonus = { [def.perkType]: perkVal };
+  const bonusText = `+${perkVal}% ${def.perkLabel}`;
+
+  const curStreak = streak ? Number(streak.current) || 0 : 0;
+  let mood = 'sleepy';
+  let moodBadge = '😴 Cozy Nap';
+  let moodQuote = 'Napping by the tavern hearth — log a quick session to wake me!';
+  if (isTimerRunning) {
+    mood = 'focused';
+    moodBadge = '⚡ Cheering You On';
+    moodQuote = 'Locked in right beside you — keep that focus flowing!';
+  } else if (todaySeconds > 0) {
+    mood = 'happy';
+    moodBadge = '✨ Thriving';
+    moodQuote = 'Energized from today’s adventure — proud of your momentum!';
+  } else if (curStreak > 0) {
+    mood = 'ready';
+    moodBadge = '🌤️ Ready';
+    moodQuote = 'Streak fire is warm — one short session keeps us evolving!';
+  }
+
+  const customName =
+    companionRaw && typeof companionRaw.name === 'string' && companionRaw.name.trim()
+      ? companionRaw.name.trim().slice(0, 24)
+      : def.defaultName;
+
+  return {
+    adopted: true,
+    species: speciesId,
+    name: customName,
+    def,
+    stageIndex,
+    stage: curStage.stage,
+    stageLabel: curStage.label,
+    stageTitle: def.stageTitles[stageIndex] || def.speciesName,
+    stageIcon: def.stageIcons[stageIndex] || '🐾',
+    nextStage,
+    progressPercent,
+    totalHours: Math.round(totalHours * 10) / 10,
+    bestStreak,
+    mood,
+    moodBadge,
+    moodQuote,
+    bonus,
+    bonusText,
+    petsCount: Math.max(0, Math.floor(Number(companionRaw?.petsCount) || 0)),
+  };
+}
+
+/**
+ * Compute enriched Story Campaigns summary (active arcs, claimable victories, trophies).
+ */
+export function computeCampaignSummary(campaigns = []) {
+  const items = (Array.isArray(campaigns) ? campaigns : []).map((camp) => {
+    const chapters = Array.isArray(camp.chapters) ? camp.chapters : [];
+    const totalCount = chapters.length;
+    const completedCount = chapters.filter((c) => c && c.completed).length;
+    const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const isComplete = totalCount > 0 && completedCount === totalCount;
+    const claimedVictory = Boolean(camp.claimedVictory);
+    const earnsEpicChest = totalCount >= CAMPAIGN_MIN_CHAPTERS_FOR_CHEST;
+    const victoryXp = earnsEpicChest ? CAMPAIGN_VICTORY_XP : CAMPAIGN_SHORT_VICTORY_XP;
+    const victoryGold = earnsEpicChest ? CAMPAIGN_VICTORY_GOLD : CAMPAIGN_SHORT_VICTORY_GOLD;
+    const victoryShards = earnsEpicChest ? CAMPAIGN_VICTORY_SHARDS : CAMPAIGN_SHORT_VICTORY_SHARDS;
+
+    return {
+      ...camp,
+      chapters,
+      completedCount,
+      totalCount,
+      progressPercent,
+      isComplete,
+      claimedVictory,
+      canClaimVictory: isComplete && !claimedVictory,
+      earnsEpicChest,
+      victoryXp,
+      victoryGold,
+      victoryShards,
+    };
+  });
+
+  // Sort: claimable victories first, then active in-progress, then claimed trophies
+  items.sort((a, b) => {
+    const rank = (c) => (c.canClaimVictory ? 0 : !c.claimedVictory ? 1 : 2);
+    return rank(a) - rank(b) || (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+  });
+
+  const active = items.filter((c) => !c.claimedVictory);
+  const completed = items.filter((c) => c.claimedVictory);
+  const claimableCount = items.filter((c) => c.canClaimVictory).length;
+
+  return {
+    items,
+    active,
+    completed,
+    activeCount: active.length,
+    completedCount: completed.length,
+    claimableCount,
+  };
+}
+
+/**
+ * Aggregate passive RPG buffs from currently equipped gear (with Forge upgrades) + active Companion Pet.
+ */
+export function computeGearBonuses(equippedGear = {}, inventoryGear = [], gearUpgrades = {}, companionBonus = null) {
   const ownedIds = new Set((inventoryGear || []).map((g) => g.gearId));
   const attrXp = { mind: 0, body: 0, craft: 0, social: 0, rest: 0 };
   let allXpPct = 0;
@@ -1238,7 +1639,9 @@ export function computeGearBonuses(equippedGear = {}, inventoryGear = []) {
 
   for (const slot of GEAR_SLOTS) {
     const gearId = equippedGear && equippedGear[slot.id];
-    const def = gearId && ownedIds.has(gearId) ? GEAR_MAP[gearId] : null;
+    const baseDef = gearId && ownedIds.has(gearId) ? GEAR_MAP[gearId] : null;
+    const forgeLv = baseDef && gearUpgrades ? Number(gearUpgrades[baseDef.id]) || 0 : 0;
+    const def = baseDef ? getScaledGearItem(baseDef, forgeLv) : null;
     equippedItems[slot.id] = def || null;
     if (!def) continue;
     equippedList.push(def);
@@ -1252,6 +1655,14 @@ export function computeGearBonuses(equippedGear = {}, inventoryGear = []) {
         if (attrId in attrXp) attrXp[attrId] += Number(pct) || 0;
       }
     }
+  }
+
+  // Blend in adopted Companion Pet's cozy passive perk
+  if (companionBonus && typeof companionBonus === 'object') {
+    allXpPct += Number(companionBonus.allXpPct) || 0;
+    goldPct += Number(companionBonus.goldPct) || 0;
+    bossDmgPct += Number(companionBonus.bossDmgPct) || 0;
+    sprintBonusPct += Number(companionBonus.sprintBonusPct) || 0;
   }
 
   const summaryTags = [];
@@ -1277,7 +1688,7 @@ export function computeGearBonuses(equippedGear = {}, inventoryGear = []) {
 
 /**
  * Compute all unopened RPG Loot Chests earned from Hero Levels, Boss Trophies,
- * Focus Sprints, and Shop Mystery Chests.
+ * Focus Sprints, Shop Mystery Chests, and Story Campaign Victories.
  */
 export function getPendingLootChests(state, playerLevel = 1) {
   const openedSet = new Set(state.openedChestMilestones || []);
@@ -1327,7 +1738,24 @@ export function getPendingLootChests(state, playerLevel = 1) {
     }
   }
 
-  // 4. Shop-purchased Mystery Chests
+  // 4. Story Campaign Victory Epic Chests (guaranteed Epic/Legendary for 3+ chapter campaigns!)
+  for (const camp of state.campaigns || []) {
+    if (!camp || !camp.id || !camp.claimedVictory) continue;
+    const chCount = Array.isArray(camp.chapters) ? camp.chapters.length : 0;
+    if (chCount < CAMPAIGN_MIN_CHAPTERS_FOR_CHEST) continue;
+    const id = `chest-camp-${camp.id}`;
+    if (!openedSet.has(id)) {
+      pending.push({
+        id,
+        tier: 'campaign',
+        icon: '👑',
+        label: `${camp.title || 'Campaign'} Epic Chest`,
+        source: 'Story Campaign Victory (Epic+ guaranteed)',
+      });
+    }
+  }
+
+  // 5. Shop-purchased Mystery Chests
   for (const c of state.purchasedChests || []) {
     if (!c || !c.id || openedSet.has(c.id)) continue;
     pending.push({
@@ -1347,11 +1775,13 @@ export function getPendingLootChests(state, playerLevel = 1) {
  */
 export function rollLootChest({ tier = 'standard', ownedGearIds = [], rng = Math.random } = {}) {
   const weights =
-    tier === 'boss'
-      ? { common: 0, rare: 45, epic: 38, legendary: 17 }
-      : tier === 'sprint'
-        ? { common: 28, rare: 42, epic: 22, legendary: 8 }
-        : { common: 48, rare: 34, epic: 14, legendary: 4 };
+    tier === 'campaign'
+      ? { common: 0, rare: 0, epic: 72, legendary: 28 }
+      : tier === 'boss'
+        ? { common: 0, rare: 45, epic: 38, legendary: 17 }
+        : tier === 'sprint'
+          ? { common: 28, rare: 42, epic: 22, legendary: 8 }
+          : { common: 48, rare: 34, epic: 14, legendary: 4 };
 
   const roll = rng() * 100;
   let rarity = 'common';
@@ -1367,7 +1797,12 @@ export function rollLootChest({ tier = 'standard', ownedGearIds = [], rng = Math
   const ownedSet = new Set(ownedGearIds || []);
   const rarityPool = GEAR_CATALOG.filter((g) => g.rarity === rarity);
   const unownedInRarity = rarityPool.filter((g) => !ownedSet.has(g.id));
-  const unownedAny = GEAR_CATALOG.filter((g) => !ownedSet.has(g.id) && (tier !== 'boss' || g.rarity !== 'common'));
+  const minRarityAllowed = (g) => {
+    if (tier === 'campaign') return g.rarity === 'epic' || g.rarity === 'legendary';
+    if (tier === 'boss') return g.rarity !== 'common';
+    return true;
+  };
+  const unownedAny = GEAR_CATALOG.filter((g) => !ownedSet.has(g.id) && minRarityAllowed(g));
 
   let chosen = null;
   if (unownedInRarity.length > 0) {
@@ -1381,12 +1816,14 @@ export function rollLootChest({ tier = 'standard', ownedGearIds = [], rng = Math
 
   const isDuplicate = ownedSet.has(chosen.id);
   const duplicateGold = isDuplicate ? RARITY_META[chosen.rarity].duplicateGold : 0;
+  const duplicateShards = isDuplicate ? RARITY_META[chosen.rarity].duplicateShards : 0;
 
   return {
     gear: chosen,
     rarityMeta: RARITY_META[chosen.rarity],
     isDuplicate,
     duplicateGold,
+    duplicateShards,
   };
 }
 
@@ -1497,7 +1934,7 @@ export function computeActivityHeatmap(sessions = [], shieldedDates = [], weeks 
 /**
  * Compute full derived snapshot of the game state for rendering.
  */
-export function computeDerivedState(state, now = Date.now()) {
+export function computeDerivedState(state, now = Date.now(), { isTimerRunning = false } = {}) {
   const activities = state.activities || [];
   const sessions = state.sessions || [];
   const shieldedDates = state.shieldedDates || [];
@@ -1522,7 +1959,27 @@ export function computeDerivedState(state, now = Date.now()) {
   const totalPlayerXp = sessionXp + bonusXp + achievementXp;
   const playerLevelInfo = getPlayerLevelInfo(totalPlayerXp);
 
-  const gearBonuses = computeGearBonuses(state.equippedGear || {}, state.inventoryGear || []);
+  const todaySessions = filterSessionsByTimeframe(sessions, 'today', now);
+  const todaySeconds = todaySessions.reduce((acc, s) => acc + s.durationSeconds, 0);
+  const todayXp = todaySessions.reduce((acc, s) => acc + s.xpEarned, 0);
+  const totalSeconds = sessions.reduce((acc, s) => acc + s.durationSeconds, 0);
+
+  const companion = computeCompanionState(state.companion, {
+    totalSeconds,
+    longestStreak: streak.longest,
+    streak,
+    todaySeconds,
+    isTimerRunning,
+  });
+  const forge = computeForgeSummary(state, playerLevelInfo.level);
+  const campaigns = computeCampaignSummary(state.campaigns || []);
+
+  const gearBonuses = computeGearBonuses(
+    state.equippedGear || {},
+    state.inventoryGear || [],
+    state.gearUpgrades || {},
+    companion.adopted ? companion.bonus : null
+  );
   const pendingChests = getPendingLootChests(state, playerLevelInfo.level);
   const themes = getThemeStatusList(state, playerLevelInfo.level);
   const activeThemeObj = themes.find((t) => t.active) || themes[0];
@@ -1548,11 +2005,6 @@ export function computeDerivedState(state, now = Date.now()) {
   );
   const gold = computeGoldSummary(state, achievements);
 
-  const todaySessions = filterSessionsByTimeframe(sessions, 'today', now);
-  const todaySeconds = todaySessions.reduce((acc, s) => acc + s.durationSeconds, 0);
-  const todayXp = todaySessions.reduce((acc, s) => acc + s.xpEarned, 0);
-  const totalSeconds = sessions.reduce((acc, s) => acc + s.durationSeconds, 0);
-
   return {
     streak,
     streakShields,
@@ -1560,6 +2012,9 @@ export function computeDerivedState(state, now = Date.now()) {
     attributeStats,
     heroClass,
     gearBonuses,
+    forge,
+    companion,
+    campaigns,
     pendingChests,
     themes,
     activeTheme: activeThemeObj,

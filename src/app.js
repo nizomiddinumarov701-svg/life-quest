@@ -5,6 +5,13 @@
 import {
   BOSS_BOUNTY_GOLD,
   BOSS_BOUNTY_XP,
+  CAMPAIGN_CHAPTER_GOLD,
+  CAMPAIGN_CHAPTER_SHARDS,
+  CAMPAIGN_CHAPTER_XP,
+  COMPANION_MAP,
+  FORGE_CRAFT_COSTS,
+  FORGE_MAX_LEVEL,
+  FORGE_UPGRADE_TIERS,
   GEAR_MAP,
   MYSTERY_CHEST_COST,
   RPG_THEME_MAP,
@@ -20,6 +27,7 @@ import {
   getEffectiveGearXpBonus,
   getLocalDateKey,
   getRewardCooldownInfo,
+  getScaledGearItem,
   isRedemptionRefundable,
   rollLootChest,
 } from './rpgEngine.js';
@@ -75,7 +83,7 @@ let pushDebounceTimer = null;
 let lastClickPos = { x: null, y: null };
 let localMutationGen = 0;
 let derivedCacheGen = 0;
-let derivedCache = { stateRef: null, dateKey: '', gen: -1, value: null };
+let derivedCache = { stateRef: null, dateKey: '', gen: -1, running: false, value: null };
 let lastKnownDateKey = getLocalDateKey();
 let lastOpenModalKey = null;
 let lastFocusedBeforeModal = null;
@@ -87,17 +95,33 @@ function invalidateDerivedCache() {
 
 function getDerivedState() {
   const todayKey = getLocalDateKey();
+  const isTimerRunning = Boolean(activeTimer && activeTimer.isRunning);
   if (
     derivedCache.value &&
     derivedCache.stateRef === state &&
     derivedCache.dateKey === todayKey &&
-    derivedCache.gen === derivedCacheGen
+    derivedCache.gen === derivedCacheGen &&
+    derivedCache.running === isTimerRunning
   ) {
     return derivedCache.value;
   }
-  const value = computeDerivedState(state);
-  derivedCache = { stateRef: state, dateKey: todayKey, gen: derivedCacheGen, value };
+  const value = computeDerivedState(state, Date.now(), { isTimerRunning });
+  derivedCache = { stateRef: state, dateKey: todayKey, gen: derivedCacheGen, running: isTimerRunning, value };
   return value;
+}
+
+function appendShardLedgerEntry({ id, delta, reason = 'Forge' }) {
+  if (!Array.isArray(state.shardLedger)) state.shardLedger = [];
+  if (state.shardLedger.some((e) => e && e.id === id)) return false;
+  const cleanDelta = Math.round(Number(delta) || 0);
+  if (cleanDelta === 0) return false;
+  state.shardLedger.push({
+    id,
+    delta: cleanDelta,
+    reason: String(reason || 'Forge').slice(0, 64),
+    timestamp: Date.now(),
+  });
+  return true;
 }
 
 function appendBonusLedgerEntry({ id, xp = 0, gold = 0, reason = 'Bonus' }) {
@@ -1049,6 +1073,13 @@ function openChestAndReveal(chest) {
       gold: result.duplicateGold,
       reason: `Dismantled duplicate ${result.gear.name}`,
     });
+    if (result.duplicateShards > 0) {
+      appendShardLedgerEntry({
+        id: `shard_dup_${chest.id}`,
+        delta: result.duplicateShards,
+        reason: `Dismantled duplicate ${result.gear.name}`,
+      });
+    }
   } else {
     state.inventoryGear.push({
       id: generateId('gear'),
@@ -1069,7 +1100,7 @@ function openChestAndReveal(chest) {
   }
   spawnFloatingText({
     text: result.isDuplicate
-      ? `✨ Duplicate +${result.duplicateGold}g 🪙`
+      ? `✨ Duplicate +${result.duplicateGold}g · +${result.duplicateShards}💠`
       : `${result.gear.icon} ${result.rarityMeta.label} Drop!`,
     tone: result.gear.rarity === 'legendary' ? 'crit' : 'gold',
     big: result.gear.rarity === 'legendary' || result.gear.rarity === 'epic',
@@ -1083,6 +1114,7 @@ function openChestAndReveal(chest) {
       rarityMeta: result.rarityMeta,
       isDuplicate: result.isDuplicate,
       duplicateGold: result.duplicateGold,
+      duplicateShards: result.duplicateShards,
     },
   };
   render();
@@ -1090,7 +1122,7 @@ function openChestAndReveal(chest) {
 
 function syncModalFocus(modalMount) {
   const modalKey = modalState
-    ? `${modalState.type}:${modalState.activityId || modalState.rewardId || (modalState.payload && modalState.payload.gear && modalState.payload.gear.id) || ''}`
+    ? `${modalState.type}:${modalState.activityId || modalState.rewardId || modalState.campaignId || (modalState.payload && modalState.payload.gear && modalState.payload.gear.id) || ''}`
     : null;
 
   if (modalKey && modalKey !== lastOpenModalKey) {
@@ -1132,11 +1164,12 @@ function render() {
     btn.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 
-  // Badge on Quests & Boss nav if claimable quests, boss bounty, or unopened loot chests exist
+  // Badge on Quests & Boss nav if claimable quests, boss bounty, campaign victories, or unopened loot chests exist
   const readyQuestsCount = derived.dailyQuests.filter((q) => q.completed && !q.claimed).length;
   const readyBossCount = derived.weeklyBoss.defeated && !derived.weeklyBoss.claimed ? 1 : 0;
   const readyChestsCount = (derived.pendingChests || []).length;
-  const readyTotal = readyQuestsCount + readyBossCount + readyChestsCount;
+  const readyCampaignsCount = derived.campaigns ? derived.campaigns.claimableCount : 0;
+  const readyTotal = readyQuestsCount + readyBossCount + readyChestsCount + readyCampaignsCount;
   const questsBadge = document.getElementById('nav-quests-badge');
   if (questsBadge) {
     questsBadge.textContent = readyTotal > 0 ? String(readyTotal) : '';
@@ -1918,6 +1951,332 @@ document.addEventListener('click', (e) => {
       break;
     }
 
+    case 'open-forge-modal':
+      modalState = { type: 'forge', tab: trigger.dataset.tab || null };
+      render();
+      break;
+
+    case 'set-forge-tab':
+      if (modalState && modalState.type === 'forge') {
+        modalState.tab = trigger.dataset.tab === 'craft' ? 'craft' : 'upgrade';
+        render();
+      }
+      break;
+
+    case 'forge-upgrade-gear': {
+      const gearId = trigger.dataset.gearId;
+      const baseDef = GEAR_MAP[gearId];
+      if (!baseDef) break;
+      const owned = (state.inventoryGear || []).some((g) => g.gearId === gearId);
+      if (!owned) break;
+      if (!state.gearUpgrades || typeof state.gearUpgrades !== 'object') state.gearUpgrades = {};
+      const curLv = Math.max(0, Math.min(FORGE_MAX_LEVEL, Math.floor(Number(state.gearUpgrades[gearId]) || 0)));
+      if (curLv >= FORGE_MAX_LEVEL) break;
+      const nextLv = curLv + 1;
+      const tier = FORGE_UPGRADE_TIERS[nextLv];
+      const derived = getDerivedState();
+      if (derived.forge.balance < tier.shards) {
+        showToast({ icon: '💠', title: `Need ${tier.shards - derived.forge.balance} more Forge Shards` });
+        break;
+      }
+      if (derived.gold.pocketBalance < tier.gold) {
+        showToast({ icon: '🪙', title: `Need ${(tier.gold - derived.gold.pocketBalance).toLocaleString()}g more Pocket Gold` });
+        break;
+      }
+
+      state.gearUpgrades[gearId] = nextLv;
+      appendShardLedgerEntry({
+        id: `shard_upg_${gearId}_lv${nextLv}`,
+        delta: -tier.shards,
+        reason: `Forged ${baseDef.name} ${tier.shortTag}`,
+      });
+      if (!Array.isArray(state.rewardRedemptions)) state.rewardRedemptions = [];
+      state.rewardRedemptions.push({
+        id: generateId('forge'),
+        rewardId: `forge_upg_${gearId}_lv${nextLv}`,
+        title: `Forge ${baseDef.name} ${tier.shortTag}`,
+        icon: '🔨',
+        cost: tier.gold,
+        epic: false,
+        refundable: false,
+        redeemedAt: Date.now(),
+      });
+      persistState();
+      const upgraded = getScaledGearItem(baseDef, nextLv);
+      sound.playForgeHammer();
+      if (isFxEnabled()) {
+        launchConfetti({
+          style: nextLv >= FORGE_MAX_LEVEL ? 'levelup' : 'coins',
+          count: nextLv >= FORGE_MAX_LEVEL ? 110 : 45,
+          durationMs: nextLv >= FORGE_MAX_LEVEL ? 2200 : 1200,
+          originX: lastClickPos.x,
+          originY: lastClickPos.y,
+        });
+      }
+      spawnFloatingText({
+        text: `🔨 ${upgraded.displayName}!`,
+        tone: nextLv >= FORGE_MAX_LEVEL ? 'crit' : 'gold',
+        x: lastClickPos.x,
+        y: lastClickPos.y,
+        big: nextLv >= FORGE_MAX_LEVEL,
+      });
+      showToast({
+        icon: baseDef.icon,
+        title: nextLv >= FORGE_MAX_LEVEL ? `★ Masterwork Forged: ${upgraded.displayName}!` : `Tempered ${upgraded.displayName}!`,
+        subtitle: upgraded.bonusText,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'forge-craft-gear': {
+      const gearId = trigger.dataset.gearId;
+      const baseDef = GEAR_MAP[gearId];
+      if (!baseDef) break;
+      if (!Array.isArray(state.inventoryGear)) state.inventoryGear = [];
+      if (state.inventoryGear.some((g) => g.gearId === gearId)) break;
+      const cost = FORGE_CRAFT_COSTS[baseDef.rarity] || FORGE_CRAFT_COSTS.rare;
+      const derived = getDerivedState();
+      if (derived.forge.balance < cost.shards) {
+        showToast({ icon: '💠', title: `Need ${cost.shards - derived.forge.balance} more Forge Shards` });
+        break;
+      }
+      if (derived.gold.pocketBalance < cost.gold) {
+        showToast({ icon: '🪙', title: `Need ${(cost.gold - derived.gold.pocketBalance).toLocaleString()}g more Pocket Gold` });
+        break;
+      }
+
+      state.inventoryGear.push({
+        id: generateId('gear'),
+        gearId: baseDef.id,
+        obtainedAt: Date.now(),
+        source: 'Blacksmith Forge',
+      });
+      appendShardLedgerEntry({
+        id: `shard_craft_${gearId}`,
+        delta: -cost.shards,
+        reason: `Crafted ${baseDef.name}`,
+      });
+      if (!Array.isArray(state.rewardRedemptions)) state.rewardRedemptions = [];
+      state.rewardRedemptions.push({
+        id: generateId('forge'),
+        rewardId: `forge_craft_${gearId}`,
+        title: `Craft ${baseDef.name}`,
+        icon: '✨',
+        cost: cost.gold,
+        epic: false,
+        refundable: false,
+        redeemedAt: Date.now(),
+      });
+      // Auto-equip if that slot is currently empty!
+      if (!state.equippedGear || typeof state.equippedGear !== 'object') {
+        state.equippedGear = { weapon: null, armor: null, relic: null, aura: null };
+      }
+      if (!state.equippedGear[baseDef.slot]) {
+        state.equippedGear[baseDef.slot] = baseDef.id;
+      }
+      persistState();
+      sound.playForgeHammer();
+      if (isFxEnabled()) {
+        launchConfetti({ style: 'levelup', count: 80, durationMs: 1800, originX: lastClickPos.x, originY: lastClickPos.y });
+      }
+      spawnFloatingText({ text: `✨ Crafted ${baseDef.name}!`, tone: 'gold', x: lastClickPos.x, y: lastClickPos.y, big: true });
+      showToast({
+        icon: baseDef.icon,
+        title: `Crafted ${baseDef.name}!`,
+        subtitle: baseDef.bonusText,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'open-companion-modal':
+      modalState = { type: 'companion' };
+      render();
+      break;
+
+    case 'adopt-companion': {
+      const speciesId = trigger.dataset.species;
+      const def = COMPANION_MAP[speciesId];
+      if (!def) break;
+      const nowTs = Date.now();
+      state.companion = {
+        species: speciesId,
+        name: def.defaultName,
+        adoptedAt: (state.companion && state.companion.adoptedAt) || nowTs,
+        petsCount: (state.companion && state.companion.petsCount) || 0,
+        updatedAt: nowTs,
+      };
+      persistState();
+      sound.playPetHappy();
+      if (isFxEnabled()) {
+        launchConfetti({ style: 'coins', count: 45, durationMs: 1400, originX: lastClickPos.x, originY: lastClickPos.y });
+      }
+      spawnFloatingText({ text: `${def.stageIcons[0]} Welcome, ${def.defaultName}!`, tone: 'gold', x: lastClickPos.x, y: lastClickPos.y });
+      showToast({
+        icon: def.stageIcons[0],
+        title: `Adopted ${def.defaultName} (${def.speciesName})!`,
+        subtitle: `Passive perk active: +${def.stageValues[0]}% ${def.perkLabel} (grows as it evolves!)`,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'pet-companion': {
+      if (!state.companion || !state.companion.species || !COMPANION_MAP[state.companion.species]) {
+        modalState = { type: 'companion' };
+        render();
+        break;
+      }
+      state.companion.petsCount = (Number(state.companion.petsCount) || 0) + 1;
+      state.companion.updatedAt = Date.now();
+      persistState();
+      const pet = getDerivedState().companion;
+      sound.playPetHappy();
+      spawnFloatingText({
+        text: `💛 ${pet.name} loved that!`,
+        tone: 'gold',
+        x: lastClickPos.x,
+        y: lastClickPos.y,
+      });
+      render();
+      break;
+    }
+
+    case 'open-new-campaign':
+      modalState = { type: 'campaign', templateId: trigger.dataset.template || null };
+      render();
+      break;
+
+    case 'open-edit-campaign':
+      modalState = { type: 'campaign', campaignId: trigger.dataset.id };
+      render();
+      break;
+
+    case 'apply-campaign-template':
+      if (modalState && modalState.type === 'campaign') {
+        modalState.templateId = trigger.dataset.template || null;
+        render();
+      }
+      break;
+
+    case 'toggle-campaign-chapter': {
+      const campId = trigger.dataset.campaignId;
+      const chId = trigger.dataset.chapterId;
+      const camp = (state.campaigns || []).find((c) => c.id === campId);
+      if (!camp || camp.claimedVictory) break;
+      const ch = (camp.chapters || []).find((item) => item.id === chId);
+      if (!ch) break;
+
+      const beforeLv = getDerivedState().playerLevelInfo.level;
+      ch.completed = !ch.completed;
+      ch.completedAt = ch.completed ? Date.now() : 0;
+      camp.updatedAt = Date.now();
+
+      let awardedFirstTime = false;
+      if (ch.completed) {
+        const ledgerId = `bonus_camp_ch_${camp.id}_${ch.id}`;
+        const alreadyCredited = (state.bonusLedger || []).some((e) => e && e.id === ledgerId);
+        if (!alreadyCredited) {
+          appendBonusLedgerEntry({
+            id: ledgerId,
+            xp: CAMPAIGN_CHAPTER_XP,
+            gold: CAMPAIGN_CHAPTER_GOLD,
+            reason: `Campaign Chapter: ${ch.title.slice(0, 32)}`,
+          });
+          appendShardLedgerEntry({
+            id: `shard_camp_ch_${camp.id}_${ch.id}`,
+            delta: CAMPAIGN_CHAPTER_SHARDS,
+            reason: `Campaign Chapter: ${camp.title.slice(0, 28)}`,
+          });
+          awardedFirstTime = true;
+        }
+      }
+
+      persistState();
+      if (awardedFirstTime) {
+        sound.playQuestClaim();
+        spawnFloatingText({
+          text: `+${CAMPAIGN_CHAPTER_XP} XP · +${CAMPAIGN_CHAPTER_GOLD}g · +${CAMPAIGN_CHAPTER_SHARDS}💠`,
+          tone: 'gold',
+          x: lastClickPos.x,
+          y: lastClickPos.y,
+        });
+        const after = getDerivedState();
+        if (after.playerLevelInfo.level > beforeLv) {
+          sound.playLevelUp();
+          showToast({
+            icon: '✨',
+            title: `Hero Level ${after.playerLevelInfo.level}!`,
+            subtitle: `Chapter milestone pushed you to ${after.playerLevelInfo.rankTitle}!`,
+            tone: 'gold',
+          });
+        }
+      } else {
+        sound.playStart();
+      }
+      render();
+      break;
+    }
+
+    case 'claim-campaign-victory': {
+      const campId = trigger.dataset.id;
+      const before = getDerivedState();
+      const campSummary = before.campaigns.items.find((c) => c.id === campId);
+      const rawCamp = (state.campaigns || []).find((c) => c.id === campId);
+      if (!campSummary || !rawCamp || !campSummary.canClaimVictory) break;
+
+      rawCamp.claimedVictory = true;
+      rawCamp.completedAt = Date.now();
+      rawCamp.updatedAt = Date.now();
+
+      appendBonusLedgerEntry({
+        id: `bonus_camp_win_${rawCamp.id}`,
+        xp: campSummary.victoryXp,
+        gold: campSummary.victoryGold,
+        reason: `Campaign Victory: ${rawCamp.title.slice(0, 32)}`,
+      });
+      appendShardLedgerEntry({
+        id: `shard_camp_win_${rawCamp.id}`,
+        delta: campSummary.victoryShards,
+        reason: `Campaign Victory: ${rawCamp.title.slice(0, 28)}`,
+      });
+      persistState();
+
+      sound.playCampaignVictory();
+      if (isFxEnabled()) {
+        launchConfetti({ style: 'levelup', count: 140, durationMs: 2600 });
+      }
+      spawnFloatingText({
+        text: `🏆 CAMPAIGN COMPLETE! +${campSummary.victoryXp} XP`,
+        tone: 'crit',
+        big: true,
+      });
+      showToast({
+        icon: '🏆',
+        title: `Campaign Conquered: ${rawCamp.title}!`,
+        subtitle: `+${campSummary.victoryXp} XP · +${campSummary.victoryGold}g · +${campSummary.victoryShards} 💠${campSummary.earnsEpicChest ? ' · 👑 Epic+ Chest waiting in Armory!' : ''}`,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'delete-campaign': {
+      const campId = trigger.dataset.id;
+      const camp = (state.campaigns || []).find((c) => c.id === campId);
+      if (!camp) break;
+      if (!window.confirm(`Delete campaign "${camp.title}"? (Any XP, Gold & Shards already earned stay safe!)`)) break;
+      state.campaigns = state.campaigns.filter((c) => c.id !== campId);
+      persistState({ deletedId: campId });
+      showToast({ icon: '🗑️', title: `Deleted "${camp.title}"` });
+      render();
+      break;
+    }
+
     case 'close-modal':
       modalState = null;
       render();
@@ -2122,6 +2481,120 @@ document.addEventListener('submit', (e) => {
       });
       sound.playStart();
       showToast({ icon: payload.icon, title: `Added Reward: ${payload.title}`, subtitle: `${payload.cost.toLocaleString()} Gold` });
+    }
+
+    persistState();
+    modalState = null;
+    render();
+    return;
+  }
+
+  if (form.id === 'companion-form') {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const species = String(fd.get('species') || 'fox');
+    const def = COMPANION_MAP[species] || COMPANION_MAP.fox;
+    const rawName = String(fd.get('name') || '').trim();
+    const nowTs = Date.now();
+    const prevAdoptedAt = state.companion && state.companion.adoptedAt ? state.companion.adoptedAt : nowTs;
+    const prevPets = state.companion && state.companion.petsCount ? state.companion.petsCount : 0;
+
+    state.companion = {
+      species: def.id,
+      name: (rawName || def.defaultName).slice(0, 24),
+      adoptedAt: prevAdoptedAt,
+      petsCount: prevPets,
+      updatedAt: nowTs,
+    };
+    persistState();
+    modalState = null;
+    sound.playPetHappy();
+    showToast({
+      icon: def.stageIcons[0],
+      title: `${state.companion.name} is ready for adventure!`,
+      subtitle: `${def.speciesName} passive perk active.`,
+      tone: 'gold',
+    });
+    render();
+    return;
+  }
+
+  if (form.id === 'campaign-form') {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const title = String(fd.get('title') || '').trim();
+    if (!title) return;
+
+    const rawChapters = String(fd.get('chapters') || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+    if (rawChapters.length === 0) {
+      showToast({ icon: '📜', title: 'Add at least 1 chapter milestone (3+ for an Epic Chest!).' });
+      return;
+    }
+
+    const editingId = form.dataset.editingId;
+    const rawColor = String(fd.get('color') || '#818cf8');
+    const cleanColor = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor : '#818cf8';
+    const linkedRaw = String(fd.get('linkedActivityId') || '').trim();
+    const linkedActivityId = linkedRaw && state.activities.some((a) => a.id === linkedRaw) ? linkedRaw : null;
+    const nowTs = Date.now();
+
+    if (!Array.isArray(state.campaigns)) state.campaigns = [];
+
+    if (editingId) {
+      const idx = state.campaigns.findIndex((c) => c.id === editingId);
+      if (idx !== -1) {
+        const prev = state.campaigns[idx];
+        const prevChapters = prev.chapters || [];
+        const chapters = rawChapters.map((chTitle, i) => {
+          const matched = prevChapters[i];
+          if (matched) {
+            return { ...matched, title: chTitle.slice(0, 80) };
+          }
+          return { id: generateId('ch'), title: chTitle.slice(0, 80), completed: false, completedAt: 0 };
+        });
+        state.campaigns[idx] = {
+          ...prev,
+          title: title.slice(0, 64),
+          icon: String(fd.get('icon') || prev.icon || '📜').slice(0, 6),
+          color: cleanColor,
+          description: String(fd.get('description') || '').trim().slice(0, 140),
+          linkedActivityId,
+          chapters,
+          updatedAt: nowTs,
+        };
+      }
+      showToast({ icon: '📜', title: `Updated "${title}"` });
+    } else {
+      const chapters = rawChapters.map((chTitle, i) => ({
+        id: `ch_${i + 1}_${generateId('m').slice(-5)}`,
+        title: chTitle.slice(0, 80),
+        completed: false,
+        completedAt: 0,
+      }));
+      state.campaigns.push({
+        id: generateId('camp'),
+        title: title.slice(0, 64),
+        icon: String(fd.get('icon') || '📜').slice(0, 6),
+        color: cleanColor,
+        description: String(fd.get('description') || '').trim().slice(0, 140),
+        linkedActivityId,
+        chapters,
+        claimedVictory: false,
+        completedAt: 0,
+        createdAt: nowTs,
+        updatedAt: nowTs,
+      });
+      sound.playStart();
+      showToast({
+        icon: String(fd.get('icon') || '📜'),
+        title: `Story Campaign Launched: ${title}!`,
+        subtitle: `${chapters.length} chapters ready to conquer.`,
+        tone: 'gold',
+      });
     }
 
     persistState();
