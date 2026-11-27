@@ -98,8 +98,19 @@ export function mergeStates(localRaw, remoteRaw) {
   const bossDifficulty = remoteIsNewer ? remote.bossDifficulty : local.bossDifficulty;
   const vaultSplitPercent = remoteIsNewer ? remote.vaultSplitPercent : local.vaultSplitPercent;
   const vaultManualDeposit = remoteIsNewer ? remote.vaultManualDeposit : local.vaultManualDeposit;
+  const activeTheme = remoteIsNewer ? remote.activeTheme : local.activeTheme;
 
-  // Keep each device's local theme, sound & FX preferences
+  const unlockedThemes = Array.from(new Set([...(remote.unlockedThemes || []), ...(local.unlockedThemes || [])]));
+  const inventoryGear = mergeById(local.inventoryGear, remote.inventoryGear, deletedIds, 'gearId');
+  const equippedGear = remoteIsNewer ? { ...remote.equippedGear } : { ...local.equippedGear };
+  const openedChestMilestones = Array.from(
+    new Set([...(remote.openedChestMilestones || []), ...(local.openedChestMilestones || [])])
+  );
+  const purchasedChests = mergeById(local.purchasedChests, remote.purchasedChests, deletedIds, 'id');
+  const shieldPurchases = mergeById(local.shieldPurchases, remote.shieldPurchases, deletedIds, 'id');
+  const shieldedDates = Array.from(new Set([...(remote.shieldedDates || []), ...(local.shieldedDates || [])])).sort();
+
+  // Keep each device's local light/dark, sound & FX preferences
   const settings = { ...local.settings };
 
   const bonusXp = Math.max(Number(local.bonusXp) || 0, Number(remote.bonusXp) || 0);
@@ -113,6 +124,14 @@ export function mergeStates(localRaw, remoteRaw) {
     bossDifficulty,
     vaultSplitPercent,
     vaultManualDeposit,
+    activeTheme,
+    unlockedThemes,
+    inventoryGear,
+    equippedGear,
+    openedChestMilestones,
+    purchasedChests,
+    shieldPurchases,
+    shieldedDates,
     activities,
     sessions,
     claimedQuests,

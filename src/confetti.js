@@ -61,11 +61,12 @@ function ensureCanvasLoop() {
     // Expanding shockwave rings
     rings = rings.filter((ring) => {
       const t = (now - ring.born) / ring.life;
+      if (t < 0) return true;
       if (t >= 1) return false;
       const eased = 1 - Math.pow(1 - t, 3);
-      const radius = ring.startR + (ring.endR - ring.startR) * eased;
+      const radius = Math.max(0.5, ring.startR + (ring.endR - ring.startR) * eased);
       ctx.save();
-      ctx.globalAlpha = (1 - t) * 0.72;
+      ctx.globalAlpha = Math.max(0, (1 - t) * 0.72);
       ctx.strokeStyle = ring.color;
       ctx.lineWidth = Math.max(1, ring.lineWidth * (1 - t));
       ctx.beginPath();
@@ -78,6 +79,7 @@ function ensureCanvasLoop() {
     // Particles
     particles = particles.filter((p) => {
       const t = (now - p.born) / p.life;
+      if (t < 0) return true;
       if (t >= 1) return false;
 
       p.x += p.vx;

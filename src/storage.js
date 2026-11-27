@@ -2,7 +2,15 @@
  * Local-first browser storage, defaults, JSON import/export & sample data generator.
  */
 
-import { ATTRIBUTE_MAP, BOSS_DIFFICULTIES, calculateSessionXp, getLocalDateKey } from './rpgEngine.js';
+import {
+  ATTRIBUTE_MAP,
+  BOSS_DIFFICULTIES,
+  GEAR_MAP,
+  GEAR_SLOTS,
+  RPG_THEME_MAP,
+  calculateSessionXp,
+  getLocalDateKey,
+} from './rpgEngine.js';
 
 export const STORAGE_KEY = 'lifequest_state_v1';
 export const TIMER_STORAGE_KEY = 'lifequest_active_timer_v1';
@@ -135,6 +143,14 @@ export function createDefaultState() {
     bossDifficulty: 'adaptive',
     vaultSplitPercent: 40,
     vaultManualDeposit: 0,
+    activeTheme: 'twilight',
+    unlockedThemes: ['twilight'],
+    inventoryGear: [],
+    equippedGear: { weapon: null, armor: null, relic: null, aura: null },
+    openedChestMilestones: [],
+    purchasedChests: [],
+    shieldPurchases: [],
+    shieldedDates: [],
     activities: createStarterActivities(),
     sessions: [],
     claimedQuests: [],
@@ -267,17 +283,23 @@ export function sanitizeState(raw) {
             Number(s.durationSeconds) > 0 &&
             Number(s.timestamp) > 0
         )
-        .map((s) => ({
-          id: s.id,
-          activityId: s.activityId,
-          durationSeconds: Math.max(1, Math.round(Number(s.durationSeconds))),
-          xpEarned: Math.max(1, Math.round(Number(s.xpEarned) || calculateSessionXp(Number(s.durationSeconds), 1))),
-          multiplier: Math.max(1, Math.min(3, Number(s.multiplier) || 1)),
-          timestamp: Number(s.timestamp),
-          source: s.source === 'sprint' ? 'sprint' : s.source === 'timer' ? 'timer' : 'manual',
-          sprintBonus: Boolean(s.sprintBonus),
-          note: typeof s.note === 'string' ? s.note.trim().slice(0, 120) : '',
-        }))
+        .map((s) => {
+          const base = {
+            id: s.id,
+            activityId: s.activityId,
+            durationSeconds: Math.max(1, Math.round(Number(s.durationSeconds))),
+            xpEarned: Math.max(1, Math.round(Number(s.xpEarned) || calculateSessionXp(Number(s.durationSeconds), 1))),
+            multiplier: Math.max(1, Math.min(3, Number(s.multiplier) || 1)),
+            timestamp: Number(s.timestamp),
+            source: s.source === 'sprint' ? 'sprint' : s.source === 'timer' ? 'timer' : 'manual',
+            sprintBonus: Boolean(s.sprintBonus),
+            note: typeof s.note === 'string' ? s.note.trim().slice(0, 120) : '',
+          };
+          if (typeof s.goldEarned === 'number' && s.goldEarned > 0) {
+            base.goldEarned = Math.round(s.goldEarned);
+          }
+          return base;
+        })
     : [];
 
   const claimedQuests = Array.isArray(raw.claimedQuests)
@@ -359,6 +381,7 @@ export function sanitizeState(raw) {
           icon: typeof r.icon === 'string' && r.icon.trim() ? r.icon.trim().slice(0, 6) : '🎁',
           cost: Math.max(1, Math.round(Number(r.cost) || 1)),
           epic: Boolean(r.epic),
+          refundable: r.refundable !== false,
           redeemedAt: Number(r.redeemedAt) || Date.now(),
         }))
     : [];
@@ -369,6 +392,66 @@ export function sanitizeState(raw) {
       : 40;
   const vaultManualDeposit =
     typeof raw.vaultManualDeposit === 'number' ? Math.round(raw.vaultManualDeposit) : 0;
+
+  const activeTheme = RPG_THEME_MAP[raw.activeTheme] ? raw.activeTheme : 'twilight';
+  const unlockedThemes = Array.from(
+    new Set([
+      'twilight',
+      ...(Array.isArray(raw.unlockedThemes)
+        ? raw.unlockedThemes.filter((id) => typeof id === 'string' && Boolean(RPG_THEME_MAP[id]))
+        : []),
+    ])
+  );
+
+  const inventoryGear = Array.isArray(raw.inventoryGear)
+    ? raw.inventoryGear
+        .filter((g) => g && typeof g.gearId === 'string' && Boolean(GEAR_MAP[g.gearId]))
+        .map((g) => ({
+          id: typeof g.id === 'string' ? g.id : `gear_${g.gearId}`,
+          gearId: g.gearId,
+          obtainedAt: Number(g.obtainedAt) || Date.now(),
+          source: typeof g.source === 'string' ? g.source.slice(0, 64) : 'Loot Chest',
+        }))
+    : [];
+
+  const ownedGearSet = new Set(inventoryGear.map((g) => g.gearId));
+  const equippedGear = {};
+  for (const slot of GEAR_SLOTS) {
+    const candidate = raw.equippedGear && typeof raw.equippedGear[slot.id] === 'string' ? raw.equippedGear[slot.id] : null;
+    equippedGear[slot.id] =
+      candidate && ownedGearSet.has(candidate) && GEAR_MAP[candidate] && GEAR_MAP[candidate].slot === slot.id
+        ? candidate
+        : null;
+  }
+
+  const openedChestMilestones = Array.isArray(raw.openedChestMilestones)
+    ? Array.from(new Set(raw.openedChestMilestones.filter((id) => typeof id === 'string')))
+    : [];
+
+  const purchasedChests = Array.isArray(raw.purchasedChests)
+    ? raw.purchasedChests
+        .filter((c) => c && typeof c.id === 'string')
+        .map((c) => ({
+          id: c.id,
+          tier: c.tier === 'standard' || c.tier === 'sprint' || c.tier === 'boss' ? c.tier : 'boss',
+          purchasedAt: Number(c.purchasedAt) || Date.now(),
+        }))
+    : [];
+
+  const shieldPurchases = Array.isArray(raw.shieldPurchases)
+    ? raw.shieldPurchases
+        .filter((s) => s && typeof s.id === 'string')
+        .map((s) => ({
+          id: s.id,
+          purchasedAt: Number(s.purchasedAt) || Date.now(),
+        }))
+    : [];
+
+  const shieldedDates = Array.isArray(raw.shieldedDates)
+    ? Array.from(
+        new Set(raw.shieldedDates.filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))
+      ).sort()
+    : [];
 
   const deletedIds =
     raw.deletedIds && typeof raw.deletedIds === 'object'
@@ -388,6 +471,14 @@ export function sanitizeState(raw) {
     bossDifficulty,
     vaultSplitPercent,
     vaultManualDeposit,
+    activeTheme,
+    unlockedThemes,
+    inventoryGear,
+    equippedGear,
+    openedChestMilestones,
+    purchasedChests,
+    shieldPurchases,
+    shieldedDates,
     activities,
     sessions,
     claimedQuests,

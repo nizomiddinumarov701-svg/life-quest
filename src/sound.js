@@ -103,6 +103,24 @@ class SoundEngine {
       this.playTone(n, idx * 0.08, idx === notes.length - 1 ? 0.45 : 0.16, 'sine', 0.085);
     });
   }
+
+  playChestOpen(rarity = 'rare') {
+    const chord =
+      rarity === 'legendary'
+        ? [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98]
+        : rarity === 'epic'
+          ? [440, 554.37, 659.25, 880, 1108.73]
+          : [440, 587.33, 739.99, 880];
+    chord.forEach((n, idx) => {
+      this.playTone(n, idx * 0.075, idx === chord.length - 1 ? 0.52 : 0.18, 'triangle', 0.085);
+    });
+  }
+
+  playThemeUnlock() {
+    this.playTone(523.25, 0, 0.25, 'sine', 0.07);
+    this.playTone(659.25, 0.07, 0.28, 'sine', 0.07);
+    this.playTone(783.99, 0.14, 0.36, 'triangle', 0.075);
+  }
 }
 
 export const sound = new SoundEngine();

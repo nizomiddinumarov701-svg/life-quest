@@ -56,23 +56,61 @@ export function initAmbientCanvas() {
   resize();
   window.addEventListener('resize', resize, { passive: true });
 
-  const darkPalette = ['#fbbf24', '#818cf8', '#38bdf8', '#c084fc', '#34d399'];
-  const lightPalette = ['#d97706', '#6366f1', '#0ea5e9', '#a855f7', '#059669'];
+  const THEME_PARTICLES = {
+    twilight: {
+      dark: ['#fbbf24', '#818cf8', '#38bdf8', '#c084fc', '#34d399'],
+      light: ['#d97706', '#6366f1', '#0ea5e9', '#a855f7', '#059669'],
+      mode: 'embers',
+    },
+    cyber: {
+      dark: ['#22d3ee', '#f472b6', '#38bdf8', '#a855f7', '#2dd4bf'],
+      light: ['#0891b2', '#db2777', '#0284c7', '#7c3aed', '#0d9488'],
+      mode: 'cyber',
+    },
+    sakura: {
+      dark: ['#f9a8d4', '#f472b6', '#fbcfe8', '#fda4af', '#fde68a'],
+      light: ['#ec4899', '#f472b6', '#fb7185', '#e11d48', '#d97706'],
+      mode: 'sakura',
+    },
+    dragon: {
+      dark: ['#fb923c', '#ef4444', '#fbbf24', '#f97316', '#fb7185'],
+      light: ['#ea580c', '#dc2626', '#d97706', '#e11d48', '#c2410c'],
+      mode: 'dragon',
+    },
+    astral: {
+      dark: ['#e0e7ff', '#a78bfa', '#38bdf8', '#fde047', '#c084fc'],
+      light: ['#6366f1', '#7c3aed', '#0284c7', '#ca8a04', '#9333ea'],
+      mode: 'astral',
+    },
+  };
 
-  const particleCount = width < 760 ? 22 : 38;
+  const particleCount = width < 760 ? 24 : 42;
   const motes = Array.from({ length: particleCount }, (_, i) => ({
     x: Math.random() * width,
     y: Math.random() * height,
-    r: 1.2 + Math.random() * 2.4,
-    vx: (Math.random() - 0.5) * 0.22,
-    vy: -0.15 - Math.random() * 0.32,
+    r: 1.3 + Math.random() * 2.6,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: 0.16 + Math.random() * 0.36,
     phase: Math.random() * Math.PI * 2,
-    phaseSpeed: 0.012 + Math.random() * 0.02,
-    colorIdx: i % darkPalette.length,
-    baseAlpha: 0.22 + Math.random() * 0.42,
+    phaseSpeed: 0.012 + Math.random() * 0.022,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.03,
+    colorIdx: i % 5,
+    baseAlpha: 0.24 + Math.random() * 0.44,
   }));
 
   let rafId = null;
+
+  function drawStar(x, y, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - radius * 2.1);
+    ctx.quadraticCurveTo(x, y, x + radius * 2.1, y);
+    ctx.quadraticCurveTo(x, y, x, y + radius * 2.1);
+    ctx.quadraticCurveTo(x, y, x - radius * 2.1, y);
+    ctx.quadraticCurveTo(x, y, x, y - radius * 2.1);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   function tick() {
     rafId = requestAnimationFrame(tick);
@@ -80,38 +118,108 @@ export function initAmbientCanvas() {
 
     ctx.clearRect(0, 0, width, height);
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    const palette = isLight ? lightPalette : darkPalette;
+    const rpgTheme = document.documentElement.getAttribute('data-rpg-theme') || 'twilight';
+    const cfg = THEME_PARTICLES[rpgTheme] || THEME_PARTICLES.twilight;
+    const palette = isLight ? cfg.light : cfg.dark;
     const alphaScale = isLight ? 0.55 : 1;
 
     for (const m of motes) {
       m.phase += m.phaseSpeed;
-      m.x += m.vx + Math.sin(m.phase) * 0.16;
-      m.y += m.vy;
+      m.rot += m.rotSpeed;
 
-      if (m.y < -12) {
-        m.y = height + 12;
-        m.x = Math.random() * width;
+      if (cfg.mode === 'sakura') {
+        // Gentle falling drifting petals
+        m.x += Math.sin(m.phase) * 0.42 + 0.18;
+        m.y += m.vy * 1.15;
+        if (m.y > height + 16) {
+          m.y = -14;
+          m.x = Math.random() * width;
+        }
+      } else if (cfg.mode === 'astral') {
+        // Slow celestial drift
+        m.x += m.vx * 0.35 + Math.sin(m.phase * 0.6) * 0.08;
+        m.y -= m.vy * 0.25;
+        if (m.y < -14) {
+          m.y = height + 14;
+          m.x = Math.random() * width;
+        }
+      } else if (cfg.mode === 'dragon') {
+        // Energetic rising volcanic sparks
+        m.x += m.vx * 1.4 + Math.sin(m.phase * 1.6) * 0.34;
+        m.y -= m.vy * 1.55;
+        if (m.y < -14) {
+          m.y = height + 14;
+          m.x = Math.random() * width;
+        }
+      } else if (cfg.mode === 'cyber') {
+        // Crisp upward cyber sparks
+        m.x += Math.sin(m.phase * 1.2) * 0.1;
+        m.y -= m.vy * 1.3;
+        if (m.y < -16) {
+          m.y = height + 16;
+          m.x = Math.random() * width;
+        }
+      } else {
+        // Twilight cozy embers
+        m.x += m.vx + Math.sin(m.phase) * 0.16;
+        m.y -= m.vy;
+        if (m.y < -12) {
+          m.y = height + 12;
+          m.x = Math.random() * width;
+        }
       }
-      if (m.x < -12) m.x = width + 12;
-      if (m.x > width + 12) m.x = -12;
 
-      const pulse = 0.55 + 0.45 * Math.sin(m.phase * 1.4);
-      const alpha = m.baseAlpha * pulse * alphaScale;
-      const color = palette[m.colorIdx];
+      if (m.x < -16) m.x = width + 16;
+      if (m.x > width + 16) m.x = -16;
 
-      // Soft outer halo
+      const pulse = 0.5 + 0.5 * Math.sin(m.phase * 1.5);
+      const alpha = m.baseAlpha * (0.45 + 0.55 * pulse) * alphaScale;
+      const color = palette[m.colorIdx % palette.length];
+
       ctx.save();
-      ctx.globalAlpha = alpha * 0.35;
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, m.r * 3.1, 0, Math.PI * 2);
-      ctx.fill();
 
-      // Bright glowing core
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
-      ctx.fill();
+      if (cfg.mode === 'sakura') {
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.rot);
+        ctx.globalAlpha = alpha * 0.85;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, m.r * 2.1, m.r * 1.05, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = alpha * 0.35;
+        ctx.beginPath();
+        ctx.arc(0, 0, m.r * 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (cfg.mode === 'cyber') {
+        // Neon diamond + crisp vertical digital trail
+        ctx.globalAlpha = alpha * 0.25;
+        ctx.fillRect(m.x - 0.7, m.y, 1.4, m.r * 6.5);
+        ctx.translate(m.x, m.y);
+        ctx.rotate(Math.PI / 4);
+        ctx.globalAlpha = alpha * 0.95;
+        const sz = m.r * 1.7;
+        ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
+      } else if (cfg.mode === 'astral') {
+        // Twinkling 4-point star
+        ctx.globalAlpha = alpha * 0.28;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r * 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = alpha * (0.65 + 0.35 * pulse);
+        drawStar(m.x, m.y, m.r * (0.75 + 0.45 * pulse));
+      } else {
+        // Embers & Dragon Forge fiery sparks
+        const haloMult = cfg.mode === 'dragon' ? 3.8 : 3.1;
+        ctx.globalAlpha = alpha * (cfg.mode === 'dragon' ? 0.42 : 0.35);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r * haloMult, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
   }

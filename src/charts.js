@@ -284,3 +284,77 @@ export function renderWeeklyBarsSvg(dailySeries7d) {
     </svg>
   `;
 }
+
+/**
+ * 90-Day Glowing RPG Activity Calendar Heatmap SVG (13 weeks x 7 days).
+ */
+export function renderActivityHeatmapSvg(heatmap) {
+  if (!heatmap || !Array.isArray(heatmap.cells)) return '';
+
+  const cellSize = 16;
+  const gap = 4;
+  const step = cellSize + gap;
+  const padLeft = 32;
+  const padTop = 22;
+  const padRight = 10;
+  const padBottom = 8;
+
+  const width = padLeft + heatmap.weeks * step + padRight;
+  const height = padTop + 7 * step + padBottom;
+
+  const dayLabels = [
+    { row: 0, text: 'Mon' },
+    { row: 2, text: 'Wed' },
+    { row: 4, text: 'Fri' },
+    { row: 6, text: 'Sun' },
+  ];
+
+  const monthsSvg = (heatmap.monthLabels || [])
+    .map(
+      (m) => `
+      <text x="${padLeft + m.col * step}" y="13" class="heatmap-month-label">${esc(m.label)}</text>
+    `
+    )
+    .join('');
+
+  const daysSvg = dayLabels
+    .map(
+      (d) => `
+      <text x="${padLeft - 6}" y="${padTop + d.row * step + cellSize - 3}" text-anchor="end" class="heatmap-day-label">${d.text}</text>
+    `
+    )
+    .join('');
+
+  const cellsSvg = heatmap.cells
+    .map((c) => {
+      const x = padLeft + c.col * step;
+      const y = padTop + c.row * step;
+      const tip = c.seconds > 0
+        ? `${c.dateKey}: ${formatDurationShort(c.seconds)} · +${c.xp} XP (${c.sessions} session${c.sessions === 1 ? '' : 's'})${c.shielded ? ' · ❄️ Shielded' : ''}`
+        : c.shielded
+          ? `${c.dateKey}: ❄️ Protected by Streak Freeze Shield`
+          : `${c.dateKey}: Rest day (0m)`;
+
+      return `
+        <rect
+          x="${x}"
+          y="${y}"
+          width="${cellSize}"
+          height="${cellSize}"
+          rx="4"
+          class="heatmap-cell heat-lvl-${c.level}${c.shielded ? ' is-shielded' : ''}${c.isToday ? ' is-today' : ''}"
+        >
+          <title>${esc(tip)}</title>
+        </rect>
+      `;
+    })
+    .join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" class="heatmap-svg" role="img" aria-label="90-Day RPG Activity Heatmap">
+      ${monthsSvg}
+      ${daysSvg}
+      ${cellsSvg}
+    </svg>
+  `;
+}

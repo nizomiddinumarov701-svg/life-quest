@@ -5,14 +5,21 @@
 import {
   BOSS_BOUNTY_GOLD,
   BOSS_BOUNTY_XP,
+  GEAR_MAP,
+  MYSTERY_CHEST_COST,
+  RPG_THEME_MAP,
+  STREAK_SHIELD_COST,
+  STREAK_SHIELD_MAX,
   calculateBossDamageForSession,
   calculateSessionGold,
   calculateSessionXp,
+  computeAutoShieldDates,
   computeDerivedState,
   formatDurationShort,
   formatStopwatch,
   getLocalDateKey,
   getRewardCooldownInfo,
+  rollLootChest,
 } from './rpgEngine.js';
 import {
   createDefaultState,
@@ -332,8 +339,11 @@ function getTimerElapsedSeconds(timer = activeTimer) {
   return Math.floor((timer.accumulatedMs + runningMs) / 1000);
 }
 
-function applyThemeAndAudio() {
-  document.documentElement.setAttribute('data-theme', state.settings.theme || 'dark');
+function applyThemeAndAudio(derived = null) {
+  const lightOrDark = state.settings.theme || 'dark';
+  const rpgTheme = (derived && derived.activeTheme && derived.activeTheme.id) || state.activeTheme || 'twilight';
+  document.documentElement.setAttribute('data-theme', lightOrDark);
+  document.documentElement.setAttribute('data-rpg-theme', rpgTheme);
   const fxOn = state.settings.fxEnabled !== false;
   document.documentElement.classList.toggle('fx-off', !fxOn);
   setFxEnabled(fxOn);
@@ -341,14 +351,42 @@ function applyThemeAndAudio() {
 
   const themeBtn = document.getElementById('theme-toggle-btn');
   if (themeBtn) {
-    themeBtn.textContent = state.settings.theme === 'dark' ? '☀️' : '🌙';
-    themeBtn.title = state.settings.theme === 'dark' ? 'Switch to Cozy Light Mode' : 'Switch to Cozy Dark Mode';
+    themeBtn.textContent = lightOrDark === 'dark' ? '☀️' : '🌙';
+    themeBtn.title = lightOrDark === 'dark' ? 'Switch to Cozy Light Mode' : 'Switch to Cozy Dark Mode';
+  }
+  const paletteBtn = document.getElementById('theme-palette-btn');
+  if (paletteBtn && derived && derived.activeTheme) {
+    paletteBtn.title = `RPG Visual Theme: ${derived.activeTheme.name} — click to switch`;
   }
   const soundBtn = document.getElementById('sound-toggle-btn');
   if (soundBtn) {
     soundBtn.textContent = state.settings.soundEnabled ? '🔊' : '🔇';
     soundBtn.title = state.settings.soundEnabled ? 'Mute sound effects' : 'Enable sound effects';
   }
+}
+
+function applyAutoStreakShieldIfNeeded() {
+  const purchased = (state.shieldPurchases || []).length;
+  const used = (state.shieldedDates || []).length;
+  const available = Math.max(0, purchased - used);
+  if (available <= 0) return false;
+
+  const datesToShield = computeAutoShieldDates(state.sessions, state.shieldedDates, available);
+  if (datesToShield.length === 0) return false;
+
+  if (!Array.isArray(state.shieldedDates)) state.shieldedDates = [];
+  for (const d of datesToShield) {
+    if (!state.shieldedDates.includes(d)) state.shieldedDates.push(d);
+  }
+  state.shieldedDates.sort();
+  persistState();
+  showToast({
+    icon: '❄️',
+    title: 'Streak Freeze Shield Activated!',
+    subtitle: `Protected ${datesToShield.length} missed day${datesToShield.length === 1 ? '' : 's'} — your streak is safe!`,
+    tone: 'gold',
+  });
+  return true;
 }
 
 function showToast({ icon = '✨', title, subtitle = '', tone = 'default' }) {
@@ -413,15 +451,22 @@ function recordSession({ activityId, durationSeconds, source = 'manual', note = 
   const wasBossDefeated = before.weeklyBoss.defeated;
 
   const multiplier = before.streak.multiplier;
-  const xpEarned = calculateSessionXp(safeSeconds, multiplier, sprintBonus);
-  const goldEarned = calculateSessionGold(xpEarned);
-  const bossHit = calculateBossDamageForSession(safeSeconds, multiplier);
+  const gb = before.gearBonuses;
+  const gearXpInput = {
+    allXpPct: gb.allXpPct,
+    attrXpPct: (gb.attrXp && gb.attrXp[act.attribute]) || 0,
+    sprintBonusPct: gb.sprintBonusPct,
+  };
+  const xpEarned = calculateSessionXp(safeSeconds, multiplier, sprintBonus, gearXpInput);
+  const goldEarned = calculateSessionGold(xpEarned, gb.goldPct);
+  const bossHit = calculateBossDamageForSession(safeSeconds, multiplier, gb.bossDmgPct);
 
   const session = {
     id: generateId('sess'),
     activityId,
     durationSeconds: safeSeconds,
     xpEarned,
+    goldEarned,
     multiplier,
     timestamp: Date.now(),
     source,
@@ -729,8 +774,16 @@ function updateLiveTimerTick() {
   }
   if (xpEl) {
     const derived = computeDerivedState(state);
-    const liveXp = calculateSessionXp(elapsedSec, derived.streak.multiplier, sprintDone);
-    const liveGold = calculateSessionGold(liveXp);
+    const gb = derived.gearBonuses;
+    const gearXpInput = act
+      ? {
+          allXpPct: gb.allXpPct,
+          attrXpPct: (gb.attrXp && gb.attrXp[act.attribute]) || 0,
+          sprintBonusPct: gb.sprintBonusPct,
+        }
+      : null;
+    const liveXp = calculateSessionXp(elapsedSec, derived.streak.multiplier, sprintDone, gearXpInput);
+    const liveGold = calculateSessionGold(liveXp, gb.goldPct);
     xpEl.textContent = `+${liveXp} XP · +${liveGold}g${sprintDone ? ' ⚡' : ''}`;
   }
   if (act) {
@@ -882,10 +935,62 @@ function completeCustomQuest(questId) {
   claimDailyQuest(questId);
 }
 
+function openChestAndReveal(chest) {
+  if (!chest) return;
+  if (!Array.isArray(state.openedChestMilestones)) state.openedChestMilestones = [];
+  if (!Array.isArray(state.inventoryGear)) state.inventoryGear = [];
+  if (!state.openedChestMilestones.includes(chest.id)) {
+    state.openedChestMilestones.push(chest.id);
+  }
+
+  const ownedGearIds = state.inventoryGear.map((g) => g.gearId);
+  const result = rollLootChest({ tier: chest.tier || 'standard', ownedGearIds });
+
+  if (result.isDuplicate) {
+    state.bonusGold = (Number(state.bonusGold) || 0) + result.duplicateGold;
+  } else {
+    state.inventoryGear.push({
+      id: generateId('gear'),
+      gearId: result.gear.id,
+      obtainedAt: Date.now(),
+      source: chest.label || 'Loot Chest',
+    });
+  }
+
+  persistState();
+  sound.playChestOpen(result.gear.rarity);
+  if (isFxEnabled()) {
+    launchConfetti({
+      style: result.gear.rarity === 'legendary' ? 'levelup' : result.gear.rarity === 'epic' ? 'boss' : 'coins',
+      count: result.gear.rarity === 'legendary' ? 140 : result.gear.rarity === 'epic' ? 100 : 65,
+      durationMs: result.gear.rarity === 'legendary' ? 2600 : 1900,
+    });
+  }
+  spawnFloatingText({
+    text: result.isDuplicate
+      ? `✨ Duplicate +${result.duplicateGold}g 🪙`
+      : `${result.gear.icon} ${result.rarityMeta.label} Drop!`,
+    tone: result.gear.rarity === 'legendary' ? 'crit' : 'gold',
+    big: result.gear.rarity === 'legendary' || result.gear.rarity === 'epic',
+  });
+
+  modalState = {
+    type: 'chest-reveal',
+    payload: {
+      chestLabel: chest.label || 'Loot Chest Opened!',
+      gear: result.gear,
+      rarityMeta: result.rarityMeta,
+      isDuplicate: result.isDuplicate,
+      duplicateGold: result.duplicateGold,
+    },
+  };
+  render();
+}
+
 function render() {
-  applyThemeAndAudio();
-  updateSyncButtonUi();
   const derived = computeDerivedState(state);
+  applyThemeAndAudio(derived);
+  updateSyncButtonUi();
   const activityMap = new Map(derived.activityStats.map((a) => [a.id, a]));
 
   // Active navigation button highlighting
@@ -895,10 +1000,11 @@ function render() {
     btn.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 
-  // Badge on Quests & Boss nav if claimable quests or boss bounty exist
+  // Badge on Quests & Boss nav if claimable quests, boss bounty, or unopened loot chests exist
   const readyQuestsCount = derived.dailyQuests.filter((q) => q.completed && !q.claimed).length;
   const readyBossCount = derived.weeklyBoss.defeated && !derived.weeklyBoss.claimed ? 1 : 0;
-  const readyTotal = readyQuestsCount + readyBossCount;
+  const readyChestsCount = (derived.pendingChests || []).length;
+  const readyTotal = readyQuestsCount + readyBossCount + readyChestsCount;
   const questsBadge = document.getElementById('nav-quests-badge');
   if (questsBadge) {
     questsBadge.textContent = readyTotal > 0 ? String(readyTotal) : '';
@@ -918,7 +1024,8 @@ function render() {
       activeTimer,
       activityMap,
       derived.streak.multiplier,
-      getTimerElapsedSeconds(activeTimer)
+      getTimerElapsedSeconds(activeTimer),
+      derived.gearBonuses
     );
   }
 
@@ -941,7 +1048,7 @@ function render() {
   // Modal Mount
   const modalMount = document.getElementById('modal-mount');
   if (modalMount) {
-    modalMount.innerHTML = renderModal(modalState, state, getSyncInfo());
+    modalMount.innerHTML = renderModal(modalState, state, getSyncInfo(), derived);
   }
 }
 
@@ -1366,7 +1473,7 @@ document.addEventListener('click', (e) => {
     case 'refund-redemption': {
       const redId = trigger.dataset.id;
       const item = (state.rewardRedemptions || []).find((r) => r.id === redId);
-      if (!item) break;
+      if (!item || item.refundable === false) break;
       state.rewardRedemptions = state.rewardRedemptions.filter((r) => r.id !== redId);
       persistState({ deletedId: redId });
       showToast({
@@ -1375,6 +1482,203 @@ document.addEventListener('click', (e) => {
         subtitle: `Removed "${item.title}" from history.`,
       });
       render();
+      break;
+    }
+
+    case 'open-themes-modal':
+      modalState = { type: 'themes' };
+      render();
+      break;
+
+    case 'select-theme': {
+      const themeId = trigger.dataset.themeId;
+      const derived = computeDerivedState(state);
+      const found = derived.themes.find((t) => t.id === themeId);
+      if (!found || !found.unlocked) break;
+      state.activeTheme = found.id;
+      persistState();
+      sound.playThemeUnlock();
+      if (isFxEnabled()) {
+        launchConfetti({
+          style: 'spark',
+          count: 34,
+          durationMs: 1100,
+          originX: lastClickPos.x,
+          originY: lastClickPos.y,
+        });
+      }
+      showToast({
+        icon: found.icon,
+        title: `Theme Activated: ${found.name}!`,
+        subtitle: found.particleLabel,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'buy-theme': {
+      const themeId = trigger.dataset.themeId;
+      const themeDef = RPG_THEME_MAP[themeId];
+      if (!themeDef) break;
+      const derived = computeDerivedState(state);
+      const existing = derived.themes.find((t) => t.id === themeId);
+      if (!existing || existing.unlocked) break;
+      if (derived.gold.pocketBalance < themeDef.cost) {
+        showToast({
+          icon: '🪙',
+          title: 'Not enough Pocket Gold!',
+          subtitle: `You need ${(themeDef.cost - derived.gold.pocketBalance).toLocaleString()}g more (or reach Lv.${themeDef.unlockLevel} for free!).`,
+        });
+        break;
+      }
+      if (!Array.isArray(state.unlockedThemes)) state.unlockedThemes = ['twilight'];
+      if (!state.unlockedThemes.includes(themeDef.id)) state.unlockedThemes.push(themeDef.id);
+      state.activeTheme = themeDef.id;
+      if (!Array.isArray(state.rewardRedemptions)) state.rewardRedemptions = [];
+      state.rewardRedemptions.push({
+        id: generateId('red'),
+        rewardId: `theme_${themeDef.id}`,
+        title: `Theme: ${themeDef.name}`,
+        icon: themeDef.icon,
+        cost: themeDef.cost,
+        epic: false,
+        refundable: false,
+        redeemedAt: Date.now(),
+      });
+      persistState();
+      sound.playThemeUnlock();
+      if (isFxEnabled()) launchConfetti({ style: 'levelup', count: 95, durationMs: 2100 });
+      showToast({
+        icon: themeDef.icon,
+        title: `Theme Unlocked: ${themeDef.name}!`,
+        subtitle: `${themeDef.particleLabel} now active!`,
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'open-next-chest': {
+      const derived = computeDerivedState(state);
+      const next = (derived.pendingChests || [])[0];
+      if (!next) {
+        showToast({ icon: '🎁', title: 'No unopened chests right now', subtitle: 'Level up, slay a boss, or finish 3 Focus Sprints to earn more!' });
+        break;
+      }
+      openChestAndReveal(next);
+      break;
+    }
+
+    case 'equip-gear': {
+      const gearId = trigger.dataset.gearId;
+      const def = GEAR_MAP[gearId];
+      if (!def) break;
+      const owned = (state.inventoryGear || []).some((g) => g.gearId === gearId);
+      if (!owned) break;
+      if (!state.equippedGear || typeof state.equippedGear !== 'object') {
+        state.equippedGear = { weapon: null, armor: null, relic: null, aura: null };
+      }
+      state.equippedGear[def.slot] = def.id;
+      persistState();
+      sound.playQuestClaim();
+      showToast({
+        icon: def.icon,
+        title: `Equipped: ${def.name}`,
+        subtitle: def.bonusText,
+        tone: 'gold',
+      });
+      if (trigger.dataset.closeModal === '1') {
+        modalState = null;
+      }
+      render();
+      break;
+    }
+
+    case 'unequip-gear': {
+      const slot = trigger.dataset.slot;
+      if (!slot || !state.equippedGear || !state.equippedGear[slot]) break;
+      const oldDef = GEAR_MAP[state.equippedGear[slot]];
+      state.equippedGear[slot] = null;
+      persistState();
+      showToast({
+        icon: oldDef ? oldDef.icon : '🎒',
+        title: `Unequipped ${oldDef ? oldDef.name : 'item'}`,
+        subtitle: 'Returned safely to your Armory bag.',
+      });
+      render();
+      break;
+    }
+
+    case 'buy-streak-shield': {
+      const derived = computeDerivedState(state);
+      if (derived.streakShields.available >= STREAK_SHIELD_MAX) {
+        showToast({ icon: '❄️', title: `Already holding max ${STREAK_SHIELD_MAX} shields!` });
+        break;
+      }
+      if (derived.gold.pocketBalance < STREAK_SHIELD_COST) {
+        showToast({
+          icon: '🪙',
+          title: 'Not enough Pocket Gold!',
+          subtitle: `Need ${(STREAK_SHIELD_COST - derived.gold.pocketBalance).toLocaleString()}g more Pocket Gold.`,
+        });
+        break;
+      }
+      if (!Array.isArray(state.shieldPurchases)) state.shieldPurchases = [];
+      state.shieldPurchases.push({ id: generateId('shld'), purchasedAt: Date.now() });
+      if (!Array.isArray(state.rewardRedemptions)) state.rewardRedemptions = [];
+      state.rewardRedemptions.push({
+        id: generateId('red'),
+        rewardId: 'rpg_streak_shield',
+        title: 'Streak Freeze Shield',
+        icon: '❄️',
+        cost: STREAK_SHIELD_COST,
+        epic: false,
+        refundable: false,
+        redeemedAt: Date.now(),
+      });
+      persistState();
+      sound.playCoinSpend();
+      if (isFxEnabled()) {
+        launchConfetti({ style: 'coins', count: 55, durationMs: 1600, originX: lastClickPos.x, originY: lastClickPos.y });
+      }
+      spawnFloatingText({ text: '❄️ +1 Streak Shield!', x: lastClickPos.x, y: lastClickPos.y, tone: 'xp', big: true });
+      showToast({
+        icon: '❄️',
+        title: 'Streak Freeze Shield Purchased!',
+        subtitle: 'Your streak will automatically stay protected if you miss a day.',
+        tone: 'gold',
+      });
+      render();
+      break;
+    }
+
+    case 'buy-mystery-chest': {
+      const derived = computeDerivedState(state);
+      if (derived.gold.pocketBalance < MYSTERY_CHEST_COST) {
+        showToast({
+          icon: '🪙',
+          title: 'Not enough Pocket Gold!',
+          subtitle: `Need ${(MYSTERY_CHEST_COST - derived.gold.pocketBalance).toLocaleString()}g more Pocket Gold.`,
+        });
+        break;
+      }
+      const chestId = generateId('chest-shop');
+      if (!Array.isArray(state.purchasedChests)) state.purchasedChests = [];
+      state.purchasedChests.push({ id: chestId, tier: 'boss', purchasedAt: Date.now() });
+      if (!Array.isArray(state.rewardRedemptions)) state.rewardRedemptions = [];
+      state.rewardRedemptions.push({
+        id: generateId('red'),
+        rewardId: 'rpg_mystery_chest',
+        title: 'Tavern Mystery Loot Chest',
+        icon: '🧰',
+        cost: MYSTERY_CHEST_COST,
+        epic: false,
+        refundable: false,
+        redeemedAt: Date.now(),
+      });
+      persistState();
+      openChestAndReveal({ id: chestId, tier: 'boss', icon: '🧰', label: 'Tavern Mystery Chest' });
       break;
     }
 
@@ -1837,6 +2141,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Boot
+applyAutoStreakShieldIfNeeded();
 render();
 animateViewEntrance();
 ensureTimerLoop();

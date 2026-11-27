@@ -8,8 +8,14 @@ import {
   ACTIVITY_ICONS,
   ACTIVITY_COLORS,
   BOSS_DIFFICULTIES,
+  GEAR_MAP,
+  GEAR_SLOTS,
+  MYSTERY_CHEST_COST,
+  RARITY_META,
   REWARD_ICONS,
   SPRINT_PRESETS_MIN,
+  STREAK_SHIELD_COST,
+  STREAK_SHIELD_MAX,
   filterSessionsByTimeframe,
   formatDurationShort,
   formatStopwatch,
@@ -17,7 +23,12 @@ import {
   calculateSessionGold,
   getRewardCooldownInfo,
 } from './rpgEngine.js';
-import { renderAttributeRadarSvg, renderTimeDonutSvg, renderWeeklyBarsSvg } from './charts.js';
+import {
+  renderActivityHeatmapSvg,
+  renderAttributeRadarSvg,
+  renderTimeDonutSvg,
+  renderWeeklyBarsSvg,
+} from './charts.js';
 import { GITHUB_TOKEN_CREATE_URL } from './sync.js';
 
 export const PLAYER_AVATARS = ['🛡️', '⚔️', '🧙', '🦊', '🦉', '🐉', '🌟', '🏹', '🧭', '🌿', '🔥', '👑'];
@@ -45,7 +56,7 @@ function formatRelativeTime(timestamp) {
 /**
  * Sticky Live Timer Bar (appears whenever a timer is active or paused).
  */
-export function renderActiveTimerBar(activeTimer, activityMap, streakMultiplier, elapsedSec) {
+export function renderActiveTimerBar(activeTimer, activityMap, streakMultiplier, elapsedSec, gearBonuses = null) {
   if (!activeTimer) return '';
   const act = activityMap.get(activeTimer.activityId);
   if (!act) return '';
@@ -63,8 +74,15 @@ export function renderActiveTimerBar(activeTimer, activityMap, streakMultiplier,
       : Number(Math.max(rawSprintPct > 0 ? 1.5 : 0, rawSprintPct).toFixed(2))
     : 0;
 
-  const liveXp = calculateSessionXp(elapsedSec, streakMultiplier, sprintDone);
-  const liveGold = calculateSessionGold(liveXp);
+  const gearXpInput = gearBonuses
+    ? {
+        allXpPct: gearBonuses.allXpPct,
+        attrXpPct: (gearBonuses.attrXp && gearBonuses.attrXp[act.attribute]) || 0,
+        sprintBonusPct: gearBonuses.sprintBonusPct,
+      }
+    : null;
+  const liveXp = calculateSessionXp(elapsedSec, streakMultiplier, sprintDone, gearXpInput);
+  const liveGold = calculateSessionGold(liveXp, gearBonuses ? gearBonuses.goldPct : 0);
   const statusLabel = activeTimer.isRunning ? (isSprint ? '⚡ Focus Sprint' : 'In Progress') : 'Paused';
 
   const displayDigits = isSprint
@@ -495,6 +513,9 @@ function renderHeroBanner(state, derived) {
   const pl = derived.playerLevelInfo;
   const hc = derived.heroClass;
   const streak = derived.streak;
+  const shields = derived.streakShields;
+  const gear = derived.gearBonuses;
+  const pendingChests = derived.pendingChests || [];
   const readyQuests = derived.dailyQuests.filter((q) => q.completed && !q.claimed).length;
   const bossClaimable = derived.weeklyBoss.defeated && !derived.weeklyBoss.claimed;
 
@@ -523,14 +544,49 @@ function renderHeroBanner(state, derived) {
               <span>${pl.xpToNext.toLocaleString()} XP to Level ${pl.level + 1}</span>
             </div>
           </div>
+
+          ${
+            pendingChests.length > 0 || gear.equippedList.length > 0
+              ? `
+            <div class="hero-gear-strip">
+              ${
+                pendingChests.length > 0
+                  ? `
+                <button type="button" class="btn btn-gold btn-xs hero-chest-cta pulse-glow" data-action="open-next-chest" title="Open your earned RPG Loot Chest!">
+                  🎁 Open Loot Chest (${pendingChests.length})
+                </button>
+              `
+                  : ''
+              }
+              ${gear.equippedList
+                .map((item) => {
+                  const rm = RARITY_META[item.rarity] || RARITY_META.common;
+                  return `<button type="button" class="hero-gear-chip rarity-${esc(item.rarity)}" style="--rarity-color: ${esc(rm.color)}" data-action="switch-tab" data-tab="quests" title="${esc(item.name)} (${esc(rm.label)}) · ${esc(item.bonusText)}">${esc(item.icon)} ${esc(item.name)}</button>`;
+                })
+                .join('')}
+            </div>
+          `
+              : ''
+          }
         </div>
       </div>
 
       <div class="hero-stats hero-stats-four">
         <div class="hero-stat-box streak-box ${streak.current > 0 ? 'is-lit' : ''}">
           <div class="hero-stat-label">Streak &amp; Boost</div>
-          <div class="hero-stat-value">🔥 ${streak.current}d · <span>${streak.multiplier.toFixed(1)}x</span></div>
-          <div class="hero-stat-sub">${bossClaimable ? '🐉 Boss bounty ready!' : 'XP & Gold multiplier'}</div>
+          <div class="hero-stat-value">
+            🔥 ${streak.current}d · <span>${streak.multiplier.toFixed(1)}x</span>
+            ${shields.available > 0 ? `<span class="shield-mini-pill" title="${shields.available} Streak Freeze Shield${shields.available === 1 ? '' : 's'} ready">❄️${shields.available}</span>` : ''}
+          </div>
+          <div class="hero-stat-sub">
+            ${
+              bossClaimable
+                ? '🐉 Boss bounty ready!'
+                : shields.available > 0
+                  ? `Protected by ${shields.available} Freeze Shield${shields.available === 1 ? '' : 's'}`
+                  : 'XP & Gold multiplier'
+            }
+          </div>
         </div>
         <button class="hero-stat-box gold-box" data-action="switch-tab" data-tab="shop" title="Open Tavern Rewards Shop">
           <div class="hero-stat-label">${derived.gold.vaultEnabled ? 'Pocket · Epic Vault' : 'Gold Coins'}</div>
@@ -855,9 +911,46 @@ export function renderStatsView(state, derived, uiState) {
       <div class="card kpi-card">
         <div class="kpi-label">Best Streak</div>
         <div class="kpi-value">🔥 ${derived.streak.longest} day${derived.streak.longest === 1 ? '' : 's'}</div>
-        <div class="kpi-sub">Current streak: ${derived.streak.current} day${derived.streak.current === 1 ? '' : 's'}</div>
+        <div class="kpi-sub">Current: ${derived.streak.current}d${derived.streakShields.available > 0 ? ` · ❄️ ${derived.streakShields.available} shield${derived.streakShields.available === 1 ? '' : 's'}` : ''}</div>
       </div>
     </div>
+
+    <section class="card stats-card heatmap-card">
+      <div class="card-header-row">
+        <div>
+          <h3 class="card-title">📅 90-Day Consistency Heatmap</h3>
+          <p class="card-sub">Every glowing tile marks a day you showed up — hover any square for exact time &amp; XP</p>
+        </div>
+        <div class="heatmap-stats-pills">
+          <span class="heatmap-stat-pill"><strong>${derived.heatmap90d.activeDays}</strong> active days</span>
+          ${
+            derived.heatmap90d.bestDay
+              ? `<span class="heatmap-stat-pill">Best: <strong>${formatDurationShort(derived.heatmap90d.bestDay.seconds)}</strong></span>`
+              : ''
+          }
+          <button type="button" class="heatmap-stat-pill heatmap-shield-pill" data-action="switch-tab" data-tab="shop" title="Buy Streak Freeze Shields in the Tavern Shop">
+            ❄️ ${derived.streakShields.available}/${derived.streakShields.max} Shields
+          </button>
+        </div>
+      </div>
+
+      <div class="heatmap-scroll-wrap">
+        ${renderActivityHeatmapSvg(derived.heatmap90d)}
+      </div>
+
+      <div class="heatmap-legend-row">
+        <span class="heatmap-legend-note">❄️ Blue border = Streak Freeze Shield protected day</span>
+        <div class="heatmap-legend-scale">
+          <span>Rest</span>
+          <span class="legend-swatch heat-lvl-0"></span>
+          <span class="legend-swatch heat-lvl-1" title="< 30m"></span>
+          <span class="legend-swatch heat-lvl-2" title="30m – 1h"></span>
+          <span class="legend-swatch heat-lvl-3" title="1h – 2h"></span>
+          <span class="legend-swatch heat-lvl-4" title="2h+"></span>
+          <span>2h+</span>
+        </div>
+      </div>
+    </section>
 
     <div class="stats-grid-two">
       <section class="card stats-card">
@@ -1024,6 +1117,142 @@ export function renderStatsView(state, derived, uiState) {
 }
 
 /**
+ * Hero Armory & Loot Chests Panel (Quests & Boss / Character Sheet tab).
+ */
+function renderHeroArmorySection(state, derived) {
+  const gearBonuses = derived.gearBonuses;
+  const pendingChests = derived.pendingChests || [];
+  const rarityOrder = { legendary: 4, epic: 3, rare: 2, common: 1 };
+  const ownedItems = (state.inventoryGear || [])
+    .map((entry) => GEAR_MAP[entry.gearId])
+    .filter(Boolean)
+    .sort((a, b) => (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0) || a.name.localeCompare(b.name));
+
+  const equippedIds = new Set(Object.values(state.equippedGear || {}).filter(Boolean));
+  const nextChest = pendingChests[0] || null;
+
+  return `
+    <section class="card stats-card armory-card">
+      <div class="card-header-row">
+        <div>
+          <h3 class="card-title">🛡️ Hero Armory &amp; RPG Gear</h3>
+          <p class="card-sub">Open Loot Chests from Level-Ups, Boss Raids &amp; Focus Sprints to equip passive XP, Gold &amp; Boss DMG buffs.</p>
+        </div>
+        ${
+          nextChest
+            ? `
+          <button type="button" class="btn btn-gold btn-sm pulse-glow" data-action="open-next-chest">
+            🎁 Open Chest (${pendingChests.length})
+          </button>
+        `
+            : `<button type="button" class="btn btn-soft btn-xs" data-action="switch-tab" data-tab="shop">🧰 Mystery Chests →</button>`
+        }
+      </div>
+
+      ${
+        nextChest
+          ? `
+        <div class="chest-banner">
+          <div class="chest-banner-left">
+            <span class="chest-banner-ico">${esc(nextChest.icon)}</span>
+            <div>
+              <strong>${pendingChests.length} Loot Chest${pendingChests.length === 1 ? '' : 's'} Waiting!</strong>
+              <div class="chest-banner-sub">Next up: <strong>${esc(nextChest.label)}</strong> · ${esc(nextChest.source)}</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-gold btn-sm" data-action="open-next-chest">✨ Open Now</button>
+        </div>
+      `
+          : ''
+      }
+
+      <div class="gear-slots-grid">
+        ${GEAR_SLOTS.map((slot) => {
+          const item = gearBonuses.equippedItems[slot.id];
+          const rm = item ? RARITY_META[item.rarity] : null;
+          return `
+            <div class="gear-slot-card ${item ? `is-filled rarity-${esc(item.rarity)}` : 'is-empty'}" ${rm ? `style="--rarity-color: ${esc(rm.color)}"` : ''}>
+              <div class="gear-slot-head">
+                <span class="gear-slot-label">${esc(slot.icon)} ${esc(slot.label)}</span>
+                ${
+                  item
+                    ? `<span class="rarity-pill rarity-${esc(item.rarity)}">${esc(rm.label)}</span>`
+                    : `<span class="gear-empty-tag">Empty</span>`
+                }
+              </div>
+              ${
+                item
+                  ? `
+                <div class="gear-slot-item">
+                  <span class="gear-item-ico">${esc(item.icon)}</span>
+                  <div class="gear-item-copy">
+                    <div class="gear-item-name">${esc(item.name)}</div>
+                    <div class="gear-item-buff">${esc(item.bonusText)}</div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-ghost btn-xs gear-unequip-btn" data-action="unequip-gear" data-slot="${esc(slot.id)}">Unequip</button>
+              `
+                  : `<div class="gear-empty-hint">Open chests to find a ${esc(slot.label.toLowerCase())}!</div>`
+              }
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      ${
+        gearBonuses.summaryTags.length > 0
+          ? `
+        <div class="active-buffs-bar">
+          <span class="active-buffs-label">⚡ Active Gear Buffs:</span>
+          ${gearBonuses.summaryTags.map((t) => `<span class="buff-pill">${esc(t)}</span>`).join('')}
+        </div>
+      `
+          : ''
+      }
+
+      <div class="inventory-section">
+        <div class="inventory-head">
+          <strong>🎒 Collected Gear (${ownedItems.length} / 16)</strong>
+          <span class="text-muted">Click any item to equip or swap</span>
+        </div>
+        ${
+          ownedItems.length === 0
+            ? `<div class="empty-inline"><p>No gear collected yet — ${nextChest ? 'click <strong>Open Chest</strong> above to claim your first drops!' : 'level up, finish 3 Focus Sprints, or slay a Weekly Boss to earn Loot Chests!'}</p></div>`
+            : `
+          <div class="inventory-grid">
+            ${ownedItems
+              .map((item) => {
+                const rm = RARITY_META[item.rarity] || RARITY_META.common;
+                const isEquipped = equippedIds.has(item.id);
+                return `
+                  <button
+                    type="button"
+                    class="inv-item-card rarity-${esc(item.rarity)} ${isEquipped ? 'is-equipped' : ''}"
+                    style="--rarity-color: ${esc(rm.color)}"
+                    data-action="${isEquipped ? 'unequip-gear' : 'equip-gear'}"
+                    data-gear-id="${esc(item.id)}"
+                    data-slot="${esc(item.slot)}"
+                    title="${esc(item.lore)}"
+                  >
+                    <span class="inv-item-ico">${esc(item.icon)}</span>
+                    <div class="inv-item-info">
+                      <div class="inv-item-title">${esc(item.name)}</div>
+                      <div class="inv-item-meta">${esc(item.bonusText)}</div>
+                    </div>
+                    <span class="inv-state-tag">${isEquipped ? '✓ Equipped' : 'Equip'}</span>
+                  </button>
+                `;
+              })
+              .join('')}
+          </div>
+        `
+        }
+      </div>
+    </section>
+  `;
+}
+
+/**
  * TAB 4: QUESTS, ACHIEVEMENTS & RPG ATTRIBUTES VIEW
  */
 export function renderQuestsAndBadgesView(state, derived) {
@@ -1035,12 +1264,14 @@ export function renderQuestsAndBadgesView(state, derived) {
     <div class="page-head-row">
       <div>
         <h1 class="page-title">Quests, Boss Arena &amp; Character Sheet</h1>
-        <p class="page-sub">Slay weekly bosses, complete daily quests, evolve your Hero Class, and collect badges.</p>
+        <p class="page-sub">Slay weekly bosses, open Loot Chests, equip RPG gear, and evolve your Hero Class.</p>
       </div>
       <button class="btn btn-primary" data-action="open-custom-quest">+ Add Custom Quest</button>
     </div>
 
     ${renderWeeklyBossCard(state, derived, false)}
+
+    ${renderHeroArmorySection(state, derived)}
 
     <div class="stats-grid-two">
       <section class="card stats-card">
@@ -1240,6 +1471,66 @@ export function renderShopView(state, derived) {
       💡 Earn ~1.5g/min (× streak boost, plus <strong>+20%</strong> on completed ⚡ Focus Sprints), Daily Quests, Achievements &amp; Weekly Boss Bounties!
     </div>
 
+    <section class="rpg-shop-shelf" aria-label="RPG Power-Ups, Chests & Visual Themes">
+      <div class="rpg-shelf-card card">
+        <div class="rpg-shelf-head">
+          <span class="rpg-shelf-ico">❄️</span>
+          <div>
+            <h4>Streak Freeze Shield</h4>
+            <p>Automatically protects your streak if you miss a day (max ${STREAK_SHIELD_MAX}).</p>
+          </div>
+        </div>
+        <div class="rpg-shelf-foot">
+          <span class="rpg-shelf-meta">Owned: <strong>${derived.streakShields.available} / ${STREAK_SHIELD_MAX}</strong></span>
+          <button
+            type="button"
+            class="btn ${derived.streakShields.available >= STREAK_SHIELD_MAX || gold.pocketBalance < STREAK_SHIELD_COST ? 'btn-soft' : 'btn-gold'} btn-xs"
+            data-action="buy-streak-shield"
+            ${derived.streakShields.available >= STREAK_SHIELD_MAX || gold.pocketBalance < STREAK_SHIELD_COST ? 'disabled' : ''}
+          >
+            ${derived.streakShields.available >= STREAK_SHIELD_MAX ? '✓ Max Held' : `❄️ Buy · ${STREAK_SHIELD_COST}g`}
+          </button>
+        </div>
+      </div>
+
+      <div class="rpg-shelf-card card">
+        <div class="rpg-shelf-head">
+          <span class="rpg-shelf-ico">🧰</span>
+          <div>
+            <h4>Mystery Loot Chest</h4>
+            <p>Instant Rare, Epic, or Legendary RPG gear drop with passive XP/Gold buffs!</p>
+          </div>
+        </div>
+        <div class="rpg-shelf-foot">
+          <span class="rpg-shelf-meta">Owned gear: <strong>${(state.inventoryGear || []).length} / 16</strong></span>
+          <button
+            type="button"
+            class="btn ${gold.pocketBalance < MYSTERY_CHEST_COST ? 'btn-soft' : 'btn-gold'} btn-xs"
+            data-action="buy-mystery-chest"
+            ${gold.pocketBalance < MYSTERY_CHEST_COST ? 'disabled' : ''}
+          >
+            🎁 Open · ${MYSTERY_CHEST_COST}g
+          </button>
+        </div>
+      </div>
+
+      <div class="rpg-shelf-card card">
+        <div class="rpg-shelf-head">
+          <span class="rpg-shelf-ico">${esc(derived.activeTheme.icon)}</span>
+          <div>
+            <h4>RPG Visual Themes</h4>
+            <p>Active: <strong>${esc(derived.activeTheme.name)}</strong> (${esc(derived.activeTheme.particleLabel)}).</p>
+          </div>
+        </div>
+        <div class="rpg-shelf-foot">
+          <span class="rpg-shelf-meta">Unlocked: <strong>${derived.themes.filter((t) => t.unlocked).length} / ${derived.themes.length}</strong></span>
+          <button type="button" class="btn btn-primary btn-xs" data-action="open-themes-modal">
+            🎨 Browse Themes
+          </button>
+        </div>
+      </div>
+    </section>
+
     ${
       rewards.length === 0
         ? `
@@ -1352,7 +1643,11 @@ export function renderShopView(state, derived) {
                     <div class="redemption-meta">Redeemed ${esc(dt)}</div>
                   </div>
                   <span class="redemption-cost">-${r.cost.toLocaleString()}g</span>
-                  <button class="btn btn-ghost btn-xs" data-action="refund-redemption" data-id="${esc(r.id)}" title="Undo redemption and refund Gold">↩ Refund</button>
+                  ${
+                    r.refundable !== false
+                      ? `<button class="btn btn-ghost btn-xs" data-action="refund-redemption" data-id="${esc(r.id)}" title="Undo redemption and refund Gold">↩ Refund</button>`
+                      : `<span class="non-refundable-tag">RPG Item</span>`
+                  }
                 </div>
               `;
             })
@@ -1367,8 +1662,109 @@ export function renderShopView(state, derived) {
 /**
  * MODALS
  */
-export function renderModal(modalState, state, syncInfo = null) {
+export function renderModal(modalState, state, syncInfo = null, derived = null) {
   if (!modalState) return '';
+
+  if (modalState.type === 'themes') {
+    const themes = (derived && derived.themes) || [];
+    const pocketGold = derived && derived.gold ? derived.gold.pocketBalance : 0;
+    const playerLv = derived && derived.playerLevelInfo ? derived.playerLevelInfo.level : 1;
+
+    return `
+      <div class="modal-backdrop" data-action="close-modal-backdrop">
+        <div class="modal-card modal-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div class="modal-head">
+            <div>
+              <h2 id="modal-title">🎨 RPG Visual Themes &amp; Particle FX</h2>
+              <p class="modal-head-sub">Unlock themes automatically as your Hero levels up, or unlock early with Pocket Gold (${pocketGold.toLocaleString()}g).</p>
+            </div>
+            <button class="btn-icon-tiny" data-action="close-modal" aria-label="Close">✕</button>
+          </div>
+
+          <div class="themes-grid">
+            ${themes
+              .map((t) => {
+                const canBuy = !t.unlocked && pocketGold >= t.cost;
+                return `
+                  <article class="theme-option-card ${t.active ? 'is-active' : ''} ${t.unlocked ? 'is-unlocked' : 'is-locked'}">
+                    <div class="theme-swatch-banner" style="background: linear-gradient(135deg, ${esc(t.swatches[0])} 0%, ${esc(t.swatches[1])} 55%, ${esc(t.swatches[2])} 100%);">
+                      <span class="theme-banner-ico">${esc(t.icon)}</span>
+                      <span class="theme-particle-chip">✨ ${esc(t.particleLabel)}</span>
+                    </div>
+                    <div class="theme-option-body">
+                      <div class="theme-option-head">
+                        <h3>${esc(t.name)}</h3>
+                        ${
+                          t.active
+                            ? `<span class="theme-status-pill is-active">✓ Active</span>`
+                            : t.unlocked
+                              ? `<span class="theme-status-pill is-ready">Unlocked</span>`
+                              : `<span class="theme-status-pill is-locked">Lv.${t.unlockLevel} · ${t.cost}g</span>`
+                        }
+                      </div>
+                      <p class="theme-option-desc">${esc(t.desc)}</p>
+                      <div class="theme-option-footer">
+                        ${
+                          t.active
+                            ? `<button type="button" class="btn btn-soft btn-xs flex-grow" disabled>Currently Active</button>`
+                            : t.unlocked
+                              ? `<button type="button" class="btn btn-primary btn-xs flex-grow" data-action="select-theme" data-theme-id="${esc(t.id)}">✨ Activate Theme</button>`
+                              : `<button type="button" class="btn ${canBuy ? 'btn-gold' : 'btn-soft'} btn-xs flex-grow" data-action="buy-theme" data-theme-id="${esc(t.id)}" ${canBuy ? '' : 'disabled'}>
+                                  ${canBuy ? `🪙 Unlock Early · ${t.cost}g` : `Lv.${t.unlockLevel} (You: Lv.${playerLv}) · ${t.cost}g`}
+                                </button>`
+                        }
+                      </div>
+                    </div>
+                  </article>
+                `;
+              })
+              .join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (modalState.type === 'chest-reveal') {
+    const p = modalState.payload || {};
+    const gear = p.gear;
+    const rm = p.rarityMeta || RARITY_META.common;
+    const remainingChests = (derived && derived.pendingChests ? derived.pendingChests.length : 0);
+    const isEquippedNow =
+      gear && state.equippedGear && state.equippedGear[gear.slot] === gear.id;
+
+    return `
+      <div class="modal-backdrop" data-action="close-modal-backdrop">
+        <div class="modal-card modal-sm levelup-modal chest-reveal-modal rarity-${esc(gear ? gear.rarity : 'common')}" style="--rarity-color: ${esc(rm.color)}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div class="levelup-rays"></div>
+          <div class="chest-source-kicker">${esc(p.chestLabel || 'Loot Chest Opened!')}</div>
+          <div class="levelup-badge chest-item-badge">${esc(gear ? gear.icon : '🎁')}</div>
+          <span class="rarity-pill rarity-${esc(gear ? gear.rarity : 'common')} chest-rarity-pill">${esc(rm.label)}</span>
+          <h2 id="modal-title" class="levelup-title">${esc(gear ? gear.name : 'Mystery Loot')}</h2>
+          <div class="chest-buff-banner">${esc(gear ? gear.bonusText : '')}</div>
+          <p class="levelup-sub">${esc(gear ? gear.lore : '')}</p>
+          ${
+            p.isDuplicate
+              ? `<div class="chest-dup-note">✨ Already owned — dismantled duplicate for <strong>+${p.duplicateGold}g 🪙</strong>!</div>`
+              : ''
+          }
+          <div class="chest-reveal-actions">
+            ${
+              gear && !isEquippedNow
+                ? `<button type="button" class="btn btn-gold" data-action="equip-gear" data-gear-id="${esc(gear.id)}" data-close-modal="1">⚔️ Equip Now</button>`
+                : ''
+            }
+            ${
+              remainingChests > 0
+                ? `<button type="button" class="btn btn-primary" data-action="open-next-chest">🎁 Open Next (${remainingChests})</button>`
+                : ''
+            }
+            <button type="button" class="btn btn-soft" data-action="close-modal">${isEquippedNow || remainingChests === 0 ? 'Awesome! ✨' : 'Keep in Bag'}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   if (modalState.type === 'activity') {
     const editing = modalState.activityId

@@ -31,6 +31,100 @@
   --shadow-elevated: 0 18px 46px rgba(4, 6, 18, 0.62);
   --hero-bg: linear-gradient(135deg, #1b203b 0%, #241f3f 55%, #1a2439 100%);
   --header-bg: rgba(15, 18, 33, 0.84);
+
+  --heat-0: rgba(255, 255, 255, 0.06);
+  --heat-1: rgba(52, 211, 153, 0.34);
+  --heat-2: rgba(52, 211, 153, 0.62);
+  --heat-3: rgba(129, 140, 248, 0.85);
+  --heat-4: #fbbf24;
+}
+
+/* RPG Visual Theme 2: Cyber Neon */
+[data-theme="dark"][data-rpg-theme="cyber"] {
+  --bg-app: #060e1a;
+  --bg-radial-1: rgba(34, 211, 238, 0.17);
+  --bg-radial-2: rgba(244, 114, 182, 0.14);
+  --bg-card: #0c1729;
+  --bg-card-hover: #102038;
+  --surface-elevated: #142642;
+  --border-subtle: rgba(34, 211, 238, 0.16);
+  --border-strong: rgba(34, 211, 238, 0.36);
+  --accent-primary: #22d3ee;
+  --accent-primary-strong: #06b6d4;
+  --accent-gold: #f472b6;
+  --accent-gold-strong: #ec4899;
+  --hero-bg: linear-gradient(135deg, #0b1b33 0%, #1d1233 55%, #09202e 100%);
+  --header-bg: rgba(6, 14, 26, 0.86);
+  --heat-1: rgba(34, 211, 238, 0.28);
+  --heat-2: rgba(34, 211, 238, 0.56);
+  --heat-3: rgba(34, 211, 238, 0.88);
+  --heat-4: #f472b6;
+}
+
+/* RPG Visual Theme 3: Sakura Shrine */
+[data-theme="dark"][data-rpg-theme="sakura"] {
+  --bg-app: #150e1c;
+  --bg-radial-1: rgba(244, 114, 182, 0.18);
+  --bg-radial-2: rgba(252, 211, 77, 0.12);
+  --bg-card: #20162a;
+  --bg-card-hover: #281c35;
+  --surface-elevated: #312341;
+  --border-subtle: rgba(249, 168, 212, 0.16);
+  --border-strong: rgba(249, 168, 212, 0.34);
+  --accent-primary: #f472b6;
+  --accent-primary-strong: #db2777;
+  --accent-gold: #fcd34d;
+  --accent-gold-strong: #f59e0b;
+  --hero-bg: linear-gradient(135deg, #271630 0%, #341b35 55%, #261b2f 100%);
+  --header-bg: rgba(21, 14, 28, 0.86);
+  --heat-1: rgba(249, 168, 212, 0.3);
+  --heat-2: rgba(244, 114, 182, 0.58);
+  --heat-3: rgba(244, 114, 182, 0.88);
+  --heat-4: #fcd34d;
+}
+
+/* RPG Visual Theme 4: Dragon Forge */
+[data-theme="dark"][data-rpg-theme="dragon"] {
+  --bg-app: #160c10;
+  --bg-radial-1: rgba(249, 115, 22, 0.18);
+  --bg-radial-2: rgba(239, 68, 68, 0.15);
+  --bg-card: #221318;
+  --bg-card-hover: #2c1820;
+  --surface-elevated: #361e26;
+  --border-subtle: rgba(251, 146, 60, 0.18);
+  --border-strong: rgba(251, 146, 60, 0.36);
+  --accent-primary: #fb923c;
+  --accent-primary-strong: #ea580c;
+  --accent-gold: #fbbf24;
+  --accent-gold-strong: #f59e0b;
+  --hero-bg: linear-gradient(135deg, #2a1319 0%, #381915 55%, #241219 100%);
+  --header-bg: rgba(22, 12, 16, 0.86);
+  --heat-1: rgba(251, 146, 60, 0.32);
+  --heat-2: rgba(249, 115, 22, 0.6);
+  --heat-3: rgba(239, 68, 68, 0.86);
+  --heat-4: #fbbf24;
+}
+
+/* RPG Visual Theme 5: Astral Starlight */
+[data-theme="dark"][data-rpg-theme="astral"] {
+  --bg-app: #080b1c;
+  --bg-radial-1: rgba(167, 139, 250, 0.2);
+  --bg-radial-2: rgba(56, 189, 248, 0.15);
+  --bg-card: #111530;
+  --bg-card-hover: #171c3f;
+  --surface-elevated: #1e2450;
+  --border-subtle: rgba(196, 181, 253, 0.17);
+  --border-strong: rgba(196, 181, 253, 0.36);
+  --accent-primary: #a78bfa;
+  --accent-primary-strong: #7c3aed;
+  --accent-gold: #fde047;
+  --accent-gold-strong: #eab308;
+  --hero-bg: linear-gradient(135deg, #13163b 0%, #1d1442 55%, #0e203b 100%);
+  --header-bg: rgba(8, 11, 28, 0.86);
+  --heat-1: rgba(167, 139, 250, 0.32);
+  --heat-2: rgba(167, 139, 250, 0.62);
+  --heat-3: rgba(56, 189, 248, 0.88);
+  --heat-4: #fde047;
 }
 
 [data-theme="light"] {
@@ -60,6 +154,43 @@
   --shadow-elevated: 0 18px 40px rgba(68, 53, 30, 0.18);
   --hero-bg: linear-gradient(135deg, #fffaf0 0%, #f5f0ff 55%, #eef7ff 100%);
   --header-bg: rgba(246, 243, 235, 0.86);
+
+  --heat-0: rgba(45, 38, 28, 0.08);
+  --heat-1: rgba(16, 185, 129, 0.32);
+  --heat-2: rgba(16, 185, 129, 0.6);
+  --heat-3: rgba(99, 102, 241, 0.78);
+  --heat-4: #d97706;
+}
+
+[data-theme="light"][data-rpg-theme="cyber"] {
+  --accent-primary: #0891b2;
+  --accent-primary-strong: #0e7490;
+  --accent-gold: #db2777;
+  --accent-gold-strong: #be185d;
+  --bg-radial-1: rgba(6, 182, 212, 0.14);
+  --bg-radial-2: rgba(236, 72, 153, 0.1);
+}
+
+[data-theme="light"][data-rpg-theme="sakura"] {
+  --bg-app: #fcf4f8;
+  --accent-primary: #db2777;
+  --accent-primary-strong: #be185d;
+  --bg-radial-1: rgba(244, 114, 182, 0.16);
+  --bg-radial-2: rgba(245, 158, 11, 0.1);
+}
+
+[data-theme="light"][data-rpg-theme="dragon"] {
+  --accent-primary: #ea580c;
+  --accent-primary-strong: #c2410c;
+  --bg-radial-1: rgba(249, 115, 22, 0.16);
+  --bg-radial-2: rgba(225, 29, 72, 0.1);
+}
+
+[data-theme="light"][data-rpg-theme="astral"] {
+  --accent-primary: #7c3aed;
+  --accent-primary-strong: #6d28d9;
+  --bg-radial-1: rgba(124, 58, 237, 0.14);
+  --bg-radial-2: rgba(14, 165, 233, 0.12);
 }
 
 *,
@@ -3730,6 +3861,712 @@ select:focus-visible {
   border-color: color-mix(in srgb, #38bdf8 35%, var(--border-subtle));
 }
 
+/* ==========================================================================
+   RPG Visual Themes, Hero Armory, Loot Chests, 90-Day Heatmap & Shields
+   ========================================================================== */
+
+.hero-gear-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+}
+
+.hero-chest-cta {
+  padding: 0.3rem 0.72rem;
+  font-size: 0.76rem;
+}
+
+.hero-gear-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.22rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 46%, transparent);
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 13%, var(--surface-soft));
+  color: var(--text-primary);
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.hero-gear-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--rarity-color, var(--accent-gold));
+}
+
+.shield-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 0.05rem 0.36rem;
+  border-radius: 999px;
+  margin-left: 0.28rem;
+  vertical-align: middle;
+}
+
+/* 90-Day Glowing RPG Activity Heatmap */
+.heatmap-card {
+  margin-bottom: 1.25rem;
+}
+
+.heatmap-stats-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.heatmap-stat-pill {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.24rem 0.65rem;
+  white-space: nowrap;
+}
+
+.heatmap-stat-pill strong {
+  color: var(--text-primary);
+}
+
+.heatmap-shield-pill {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(56, 189, 248, 0.11);
+}
+
+.heatmap-shield-pill:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.heatmap-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0.25rem 0 0.4rem;
+}
+
+.heatmap-svg {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  min-width: 0;
+  height: auto;
+  margin: 0 auto;
+}
+
+.heatmap-month-label,
+.heatmap-day-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  fill: var(--text-muted);
+}
+
+.heatmap-cell {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.heatmap-cell.heat-lvl-0,
+.legend-swatch.heat-lvl-0 {
+  fill: var(--heat-0);
+  background: var(--heat-0);
+}
+
+.heatmap-cell.heat-lvl-1,
+.legend-swatch.heat-lvl-1 {
+  fill: var(--heat-1);
+  background: var(--heat-1);
+}
+
+.heatmap-cell.heat-lvl-2,
+.legend-swatch.heat-lvl-2 {
+  fill: var(--heat-2);
+  background: var(--heat-2);
+}
+
+.heatmap-cell.heat-lvl-3,
+.legend-swatch.heat-lvl-3 {
+  fill: var(--heat-3);
+  background: var(--heat-3);
+}
+
+.heatmap-cell.heat-lvl-4,
+.legend-swatch.heat-lvl-4 {
+  fill: var(--heat-4);
+  background: var(--heat-4);
+}
+
+.heatmap-cell.is-shielded {
+  stroke: #38bdf8;
+  stroke-width: 1.8;
+}
+
+.heatmap-cell.is-today {
+  stroke: var(--accent-gold);
+  stroke-width: 1.8;
+}
+
+.heatmap-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.heatmap-legend-scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3.5px;
+}
+
+/* Hero Armory, Equipment Slots & Loot Chests */
+.armory-card {
+  margin-top: 1.15rem;
+  margin-bottom: 1.15rem;
+}
+
+.chest-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  padding: 0.82rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 14px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent-gold) 18%, var(--surface-soft)) 0%,
+    color-mix(in srgb, var(--accent-primary) 14%, var(--surface-soft)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 52%, transparent);
+}
+
+.chest-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chest-banner-ico {
+  font-size: 1.75rem;
+  animation: floatGentle 2.2s ease-in-out infinite;
+}
+
+.chest-banner-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.gear-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.gear-slot-card {
+  padding: 0.82rem 0.88rem;
+  border-radius: 14px;
+  background: var(--surface-soft);
+  border: 1px dashed var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.gear-slot-card.is-filled {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--rarity-color, #94a3b8) 55%, var(--border-subtle));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--rarity-color, #94a3b8) 14%, var(--bg-card)) 0%,
+    var(--bg-card) 72%
+  );
+}
+
+.gear-slot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.gear-slot-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.gear-empty-tag {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.rarity-pill {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  color: var(--rarity-color, #94a3b8);
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 42%, transparent);
+}
+
+.rarity-common { --rarity-color: #94a3b8; }
+.rarity-rare { --rarity-color: #38bdf8; }
+.rarity-epic { --rarity-color: #c084fc; }
+.rarity-legendary { --rarity-color: #fbbf24; }
+
+.gear-slot-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gear-item-ico {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 16%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 45%, transparent);
+}
+
+.gear-item-copy {
+  min-width: 0;
+}
+
+.gear-item-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gear-item-buff {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-top: 0.12rem;
+}
+
+.gear-unequip-btn {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.gear-empty-hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  padding: 0.45rem 0;
+}
+
+.active-buffs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+  padding: 0.62rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-gold) 10%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 32%, transparent);
+}
+
+.active-buffs-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+
+.buff-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.inventory-section {
+  margin-top: 1rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.inventory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+  font-size: 0.86rem;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 0.55rem;
+}
+
+.inv-item-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.58rem 0.72rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--rarity-color, #94a3b8) 38%, var(--border-subtle));
+  background: var(--surface-soft);
+  text-align: left;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.inv-item-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--rarity-color, var(--accent-gold));
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 12%, var(--surface-soft));
+}
+
+.inv-item-card.is-equipped {
+  border-color: var(--rarity-color, var(--accent-gold));
+  background: color-mix(in srgb, var(--rarity-color, #94a3b8) 16%, var(--bg-card));
+}
+
+.inv-item-ico {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.inv-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.inv-item-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-item-meta {
+  font-size: 0.7rem;
+  color: var(--rarity-color, var(--accent-gold));
+  font-weight: 600;
+}
+
+.inv-state-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.inv-item-card.is-equipped .inv-state-tag {
+  color: var(--accent-emerald);
+}
+
+/* Tavern Shop RPG Power-Ups & Themes Shelf */
+.rpg-shop-shelf {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.15rem;
+}
+
+.rpg-shelf-card {
+  padding: 0.95rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-primary) 10%, var(--bg-card)) 0%,
+    var(--bg-card) 75%
+  );
+  border-color: color-mix(in srgb, var(--accent-primary) 32%, var(--border-subtle));
+}
+
+.rpg-shelf-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.rpg-shelf-ico {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.rpg-shelf-head h4 {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 800;
+}
+
+.rpg-shelf-head p {
+  margin: 0.16rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.rpg-shelf-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.rpg-shelf-meta {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.rpg-shelf-meta strong {
+  color: var(--text-primary);
+}
+
+.non-refundable-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+}
+
+/* RPG Visual Themes Gallery Modal */
+.modal-lg {
+  max-width: 720px;
+}
+
+.modal-head-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.theme-option-card {
+  border-radius: 15px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-soft);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.theme-option-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+.theme-option-card.is-active {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 1px var(--accent-gold);
+}
+
+.theme-swatch-banner {
+  height: 76px;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  position: relative;
+}
+
+.theme-banner-ico {
+  font-size: 1.85rem;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+}
+
+.theme-particle-chip {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(8, 10, 22, 0.62);
+  backdrop-filter: blur(6px);
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.theme-option-body {
+  padding: 0.78rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  flex: 1;
+}
+
+.theme-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.theme-option-head h3 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.theme-status-pill {
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.theme-status-pill.is-active {
+  background: color-mix(in srgb, var(--accent-emerald) 18%, transparent);
+  color: var(--accent-emerald);
+}
+
+.theme-status-pill.is-ready {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.theme-status-pill.is-locked {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+}
+
+.theme-option-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.38;
+}
+
+.theme-option-footer {
+  display: flex;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+/* Animated Loot Chest Reveal Modal */
+.chest-reveal-modal {
+  border-color: color-mix(in srgb, var(--rarity-color, #fbbf24) 65%, transparent);
+  box-shadow: 0 0 42px color-mix(in srgb, var(--rarity-color, #fbbf24) 28%, transparent), var(--shadow-elevated);
+}
+
+.chest-source-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+}
+
+.chest-item-badge {
+  border: 2px solid color-mix(in srgb, var(--rarity-color, #fbbf24) 70%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--rarity-color, #fbbf24) 40%, transparent);
+}
+
+.chest-rarity-pill {
+  position: relative;
+  z-index: 1;
+  font-size: 0.72rem;
+  padding: 0.18rem 0.72rem;
+  margin-bottom: 0.35rem;
+  display: inline-block;
+}
+
+.chest-buff-banner {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  background: color-mix(in srgb, var(--accent-gold) 14%, var(--surface-soft));
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 38%, transparent);
+  padding: 0.28rem 0.78rem;
+  border-radius: 999px;
+  margin: 0.3rem 0 0.45rem;
+}
+
+.chest-dup-note {
+  position: relative;
+  z-index: 1;
+  font-size: 0.78rem;
+  color: var(--accent-gold);
+  background: color-mix(in srgb, var(--accent-gold) 12%, transparent);
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  margin-bottom: 0.7rem;
+}
+
+.chest-reveal-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 1180px) {
   .top-nav-inner {
     padding: 0.62rem 0.9rem;
@@ -3776,6 +4613,12 @@ select:focus-visible {
   .stats-grid-two {
     grid-template-columns: minmax(0, 1fr);
   }
+  .gear-slots-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rpg-shop-shelf {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 960px) {
@@ -3817,18 +4660,18 @@ select:focus-visible {
     display: none;
   }
   .nav-utilities {
-    gap: 0.3rem;
+    gap: 0.24rem;
   }
   .sync-util-btn {
-    height: 32px;
-    padding: 0 0.58rem;
-    font-size: 0.75rem;
+    height: 30px;
+    padding: 0 0.48rem;
+    font-size: 0.72rem;
     border-radius: 9px;
   }
   .icon-util-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 0.88rem;
+    width: 30px;
+    height: 30px;
+    font-size: 0.84rem;
     border-radius: 9px;
   }
 
@@ -3954,6 +4797,8 @@ select:focus-visible {
   .app-container {
     padding: 0.85rem 0.75rem 6.5rem;
     max-width: 100%;
+    width: 100%;
+    overflow-x: clip;
   }
 
   .card,
@@ -3963,9 +4808,33 @@ select:focus-visible {
   .activity-card,
   .sidebar-card,
   .stats-card,
-  .reward-card {
+  .reward-card,
+  .rpg-shelf-card {
     min-width: 0;
     max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .card-header-row {
+    flex-wrap: wrap;
+    gap: 0.55rem;
+  }
+
+  .history-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .heatmap-scroll-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .heatmap-svg {
+    max-width: 100%;
+    min-width: 0;
   }
 
   .hero-card {
@@ -4044,7 +4913,9 @@ select:focus-visible {
   .activities-grid-wide,
   .rewards-grid,
   .achievements-grid,
-  .kpi-grid {
+  .kpi-grid,
+  .gear-slots-grid,
+  .themes-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.8rem;
   }

@@ -36,6 +36,112 @@ export const SPRINT_PRESETS_MIN = [25, 45, 60];
 export const GOLD_PER_XP_RATIO = 0.15; // 10 XP/min -> 1.5 Gold/min (90g/hr at 1x, up to 180g/hr at 2x)
 export const BOSS_BOUNTY_XP = 300;
 export const BOSS_BOUNTY_GOLD = 200;
+export const STREAK_SHIELD_COST = 280;
+export const STREAK_SHIELD_MAX = 3;
+export const MYSTERY_CHEST_COST = 240;
+
+/**
+ * Unlockable RPG Visual Themes & Ambient Particle FX Styles
+ */
+export const RPG_THEMES = [
+  {
+    id: 'twilight',
+    name: 'Twilight Tavern',
+    icon: '🌙',
+    particleLabel: 'Warm Embers & Fireflies',
+    desc: 'Cozy twilight indigo with warm golden lantern glow.',
+    unlockLevel: 1,
+    cost: 0,
+    swatches: ['#0f1221', '#818cf8', '#fbbf24'],
+  },
+  {
+    id: 'cyber',
+    name: 'Cyber Neon',
+    icon: '⚡',
+    particleLabel: 'Neon Digital Sparks',
+    desc: 'Electric cyan & magenta grid glow — built for deep coding.',
+    unlockLevel: 3,
+    cost: 250,
+    swatches: ['#07111f', '#22d3ee', '#f472b6'],
+  },
+  {
+    id: 'sakura',
+    name: 'Sakura Shrine',
+    icon: '🌸',
+    particleLabel: 'Drifting Blossom Petals',
+    desc: 'Moonlit plum sky with gently falling pink sakura petals.',
+    unlockLevel: 5,
+    cost: 400,
+    swatches: ['#181020', '#f472b6', '#fcd34d'],
+  },
+  {
+    id: 'dragon',
+    name: 'Dragon Forge',
+    icon: '🐉',
+    particleLabel: 'Molten Volcanic Embers',
+    desc: 'Obsidian anvil warmth with blazing crimson & molten gold.',
+    unlockLevel: 8,
+    cost: 550,
+    swatches: ['#180d12', '#f97316', '#fb7185'],
+  },
+  {
+    id: 'astral',
+    name: 'Astral Starlight',
+    icon: '🌌',
+    particleLabel: 'Twinkling Cosmic Stars',
+    desc: 'Deep nebula skies glittering with celestial starlight.',
+    unlockLevel: 10,
+    cost: 750,
+    swatches: ['#090c1d', '#a78bfa', '#38bdf8'],
+  },
+];
+
+export const RPG_THEME_MAP = Object.fromEntries(RPG_THEMES.map((t) => [t.id, t]));
+
+/**
+ * RPG Equipment Slots, Rarities & Curated Gear Catalog
+ */
+export const GEAR_SLOTS = [
+  { id: 'weapon', label: 'Tool / Weapon', icon: '⚔️' },
+  { id: 'armor', label: 'Cloak / Armor', icon: '🛡️' },
+  { id: 'relic', label: 'Relic / Charm', icon: '🔮' },
+  { id: 'aura', label: 'Crest / Aura', icon: '✨' },
+];
+
+export const RARITY_META = {
+  common: { id: 'common', label: 'Common', color: '#94a3b8', duplicateGold: 45 },
+  rare: { id: 'rare', label: 'Rare', color: '#38bdf8', duplicateGold: 85 },
+  epic: { id: 'epic', label: 'Epic', color: '#c084fc', duplicateGold: 145 },
+  legendary: { id: 'legendary', label: 'Legendary', color: '#fbbf24', duplicateGold: 240 },
+};
+
+export const GEAR_CATALOG = [
+  // Weapons / Tools
+  { id: 'wpn_copper_stylus', slot: 'weapon', rarity: 'common', icon: '✒️', name: 'Copper Stylus', lore: 'Reliable tool of an eager apprentice.', bonus: { attrXp: { craft: 3 } }, bonusText: '+3% Craft XP' },
+  { id: 'wpn_mech_blade', slot: 'weapon', rarity: 'rare', icon: '⌨️', name: 'Tactile Switchblade', lore: 'Crisp keystrokes slice cleanly through hard bugs.', bonus: { attrXp: { craft: 6 } }, bonusText: '+6% Craft XP' },
+  { id: 'wpn_cyberdeck', slot: 'weapon', rarity: 'epic', icon: '💻', name: 'Neon Cyberdeck', lore: 'Hums softly whenever a Focus Sprint begins.', bonus: { attrXp: { craft: 9 }, sprintBonusPct: 4 }, bonusText: '+9% Craft XP · +4% Sprint' },
+  { id: 'wpn_astral_forge', slot: 'weapon', rarity: 'legendary', icon: '⚒️', name: 'Astral Forge Hammer', lore: 'Turns every focused hour into pure mythic craft.', bonus: { attrXp: { craft: 12 }, goldPct: 6 }, bonusText: '+12% Craft XP · +6% Gold' },
+
+  // Armor / Cloaks
+  { id: 'arm_traveler_hoodie', slot: 'armor', rarity: 'common', icon: '🧥', name: 'Cozy Tavern Hoodie', lore: 'Warm, comfy, and ready for steady daily work.', bonus: { allXpPct: 3 }, bonusText: '+3% All XP' },
+  { id: 'arm_iron_plate', slot: 'armor', rarity: 'rare', icon: '🛡️', name: 'Vanguard Gym Plate', lore: 'Forged from early workouts and grit.', bonus: { attrXp: { body: 7 }, bossDmgPct: 4 }, bonusText: '+7% Body XP · +4% Boss DMG' },
+  { id: 'arm_shadow_cloak', slot: 'armor', rarity: 'epic', icon: '🥷', name: 'Shadow Focus Cloak', lore: 'Blocks distractions while your countdown ticks.', bonus: { sprintBonusPct: 8, allXpPct: 4 }, bonusText: '+8% Sprint · +4% All XP' },
+  { id: 'arm_dragonscale', slot: 'armor', rarity: 'legendary', icon: '🐉', name: 'Dragonscale Mantle', lore: 'Woven from vanquished procrastination wyrms.', bonus: { allXpPct: 10, bossDmgPct: 8 }, bonusText: '+10% All XP · +8% Boss DMG' },
+
+  // Relics / Charms
+  { id: 'rel_compass', slot: 'relic', rarity: 'common', icon: '🧭', name: 'Merchant’s Compass', lore: 'Points straight toward golden opportunities.', bonus: { goldPct: 5 }, bonusText: '+5% Gold' },
+  { id: 'rel_gm_knight', slot: 'relic', rarity: 'rare', icon: '♟️', name: 'Grandmaster’s Knight', lore: 'Sharpens calculation three moves ahead.', bonus: { attrXp: { mind: 7 } }, bonusText: '+7% Mind XP' },
+  { id: 'rel_scholar_prism', slot: 'relic', rarity: 'epic', icon: '🔮', name: 'Arcane Study Prism', lore: 'Refracts deep reading into lasting mastery.', bonus: { attrXp: { mind: 9 }, goldPct: 5 }, bonusText: '+9% Mind XP · +5% Gold' },
+  { id: 'rel_focus_crown', slot: 'relic', rarity: 'legendary', icon: '👑', name: 'Crown of Relentless Focus', lore: 'Worn only by heroes who show up every day.', bonus: { goldPct: 12, allXpPct: 6 }, bonusText: '+12% Gold · +6% All XP' },
+
+  // Auras / Crests
+  { id: 'aur_hearth_sigil', slot: 'aura', rarity: 'common', icon: '🔥', name: 'Hearthfire Sigil', lore: 'Kindles courage against weekly raid bosses.', bonus: { bossDmgPct: 6 }, bonusText: '+6% Boss DMG' },
+  { id: 'aur_discipline_spark', slot: 'aura', rarity: 'rare', icon: '⚡', name: 'Spark of Discipline', lore: 'Calm mind, lethal focus crits.', bonus: { bossDmgPct: 10, attrXp: { rest: 5 } }, bonusText: '+10% Boss DMG · +5% Vitality XP' },
+  { id: 'aur_wyrmslayer', slot: 'aura', rarity: 'epic', icon: '🏆', name: 'Wyrmslayer Crest', lore: 'Every tavern bard sings of your boss raids.', bonus: { bossDmgPct: 15, attrXp: { social: 7 } }, bonusText: '+15% Boss DMG · +7% Social XP' },
+  { id: 'aur_polymath_halo', slot: 'aura', rarity: 'legendary', icon: '🌟', name: 'Eternal Polymath Halo', lore: 'Radiant mastery across every sphere of life.', bonus: { bossDmgPct: 20, allXpPct: 8 }, bonusText: '+20% Boss DMG · +8% All XP' },
+];
+
+export const GEAR_MAP = Object.fromEntries(GEAR_CATALOG.map((g) => [g.id, g]));
 
 /**
  * Format local YYYY-MM-DD key from a timestamp or Date.
@@ -133,14 +239,17 @@ export function getPlayerLevelInfo(totalXp) {
 
 /**
  * Calculate consecutive day streak ending today (or yesterday if today hasn't been logged yet).
+ * Optional `shieldedDates` (array of YYYY-MM-DD strings) acts as protected Streak Freeze bridge days.
  */
-export function calculateStreak(sessions, now = Date.now()) {
+export function calculateStreak(sessions, now = Date.now(), shieldedDates = []) {
   if (!sessions || sessions.length === 0) {
-    return { current: 0, longest: 0, activeToday: false, multiplier: 1.0 };
+    return { current: 0, longest: 0, activeToday: false, shieldedCount: 0, multiplier: 1.0 };
   }
 
-  const dateSet = new Set(sessions.map((s) => getLocalDateKey(s.timestamp)));
-  const sortedKeys = Array.from(dateSet).sort();
+  const sessionDateSet = new Set(sessions.map((s) => getLocalDateKey(s.timestamp)));
+  const shieldSet = new Set((shieldedDates || []).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)));
+  const combinedSet = new Set([...sessionDateSet, ...shieldSet]);
+  const sortedKeys = Array.from(combinedSet).sort();
 
   // Longest streak ever
   let longest = 0;
@@ -158,37 +267,93 @@ export function calculateStreak(sessions, now = Date.now()) {
     prevDate = curDate;
   }
 
-  // Current streak (counts if active today OR yesterday)
+  // Current streak (counts if active/shielded today OR yesterday)
   const todayDate = parseLocalDateKey(getLocalDateKey(now));
   const todayKey = getLocalDateKey(todayDate);
   const yesterdayDate = new Date(todayDate.getTime() - 86400000);
   const yesterdayKey = getLocalDateKey(yesterdayDate);
 
-  const activeToday = dateSet.has(todayKey);
-  let cursor = activeToday ? todayDate : dateSet.has(yesterdayKey) ? yesterdayDate : null;
+  const activeToday = sessionDateSet.has(todayKey);
+  let cursor = combinedSet.has(todayKey) ? todayDate : combinedSet.has(yesterdayKey) ? yesterdayDate : null;
   let current = 0;
+  let hasRealSessionInCurrent = false;
+  let shieldedInCurrent = 0;
 
-  while (cursor && dateSet.has(getLocalDateKey(cursor))) {
+  while (cursor && combinedSet.has(getLocalDateKey(cursor))) {
+    const k = getLocalDateKey(cursor);
     current += 1;
+    if (sessionDateSet.has(k)) hasRealSessionInCurrent = true;
+    else if (shieldSet.has(k)) shieldedInCurrent += 1;
     cursor = new Date(cursor.getTime() - 86400000);
   }
+  if (!hasRealSessionInCurrent) current = 0;
 
   // Multiplier: Day 1 = 1.0x, Day 2 = 1.1x ... Day 11+ = 2.0x
   const effectiveDays = Math.max(1, current);
   const multiplier = Number((1 + Math.min(effectiveDays - 1, 10) * 0.1).toFixed(1));
 
-  return { current, longest, activeToday, multiplier };
+  return { current, longest, activeToday, shieldedCount: shieldedInCurrent, multiplier };
 }
 
 /**
- * Calculate XP earned for a duration in seconds given a streak multiplier and optional completed Focus Sprint bonus.
+ * Determine if available Streak Freeze Shields should auto-protect recently missed days
+ * to preserve an active streak. Returns array of YYYY-MM-DD date keys to shield.
  */
-export function calculateSessionXp(durationSeconds, streakMultiplier = 1.0, sprintCompleted = false) {
+export function computeAutoShieldDates(sessions, shieldedDates = [], availableShields = 0, now = Date.now()) {
+  const avail = Math.max(0, Math.floor(Number(availableShields) || 0));
+  if (avail <= 0 || !sessions || sessions.length === 0) return [];
+
+  const sessionDates = new Set(sessions.map((s) => getLocalDateKey(s.timestamp)));
+  const existingShields = new Set(shieldedDates || []);
+  const combined = new Set([...sessionDates, ...existingShields]);
+
+  const today = parseLocalDateKey(getLocalDateKey(now));
+  const todayKey = getLocalDateKey(today);
+  const yesterday = new Date(today.getTime() - 86400000);
+  const yesterdayKey = getLocalDateKey(yesterday);
+
+  // If already active or shielded yesterday (or today with yesterday covered), no emergency gap right now
+  if (combined.has(yesterdayKey)) return [];
+  // If today was logged, we only check gap immediately before today (yesterday..N days back)
+  // If today wasn't logged yet, we ALSO check gap starting from yesterday backwards
+  const missingDays = [];
+  for (let offset = 1; offset <= Math.min(avail, STREAK_SHIELD_MAX); offset++) {
+    const d = new Date(today.getTime() - offset * 86400000);
+    const key = getLocalDateKey(d);
+    if (combined.has(key)) {
+      // Found the anchor day of the previous streak! Bridge all missingDays!
+      return missingDays;
+    }
+    missingDays.push(key);
+  }
+
+  // Check if the day right after our max bridge window has activity (e.g. missed 1 day with 1 shield -> check 2 days ago!)
+  const anchorDay = new Date(today.getTime() - (missingDays.length + 1) * 86400000);
+  if (missingDays.length > 0 && missingDays.length <= avail && combined.has(getLocalDateKey(anchorDay))) {
+    return missingDays;
+  }
+
+  // Wait: if today is active and yesterday was missed, the loop above checked offset=1 (missing) and anchorDay=2 days ago!
+  // Don't burn shields if user hasn't even had a prior day before yesterday.
+  if (todayKey && missingDays.length === 0) return [];
+  return [];
+}
+
+/**
+ * Calculate XP earned for a duration in seconds given streak multiplier,
+ * optional completed Focus Sprint bonus, and optional equipped RPG gear bonus.
+ */
+export function calculateSessionXp(durationSeconds, streakMultiplier = 1.0, sprintCompleted = false, gearBonus = null) {
   const safeSec = Math.max(0, Number(durationSeconds) || 0);
   if (safeSec < 5) return 0;
   const minutes = safeSec / 60;
-  const sprintFactor = sprintCompleted ? SPRINT_BONUS_MULTIPLIER : 1.0;
-  return Math.max(1, Math.round(minutes * BASE_XP_PER_MINUTE * streakMultiplier * sprintFactor));
+  const extraSprintPct = gearBonus ? Math.max(0, Number(gearBonus.sprintBonusPct) || 0) : 0;
+  const sprintFactor = sprintCompleted ? SPRINT_BONUS_MULTIPLIER + extraSprintPct / 100 : 1.0;
+  const gearXpPct = gearBonus
+    ? Math.max(0, (Number(gearBonus.allXpPct) || 0) + (Number(gearBonus.attrXpPct) || 0))
+    : 0;
+  const gearFactor = 1 + gearXpPct / 100;
+  return Math.max(1, Math.round(minutes * BASE_XP_PER_MINUTE * streakMultiplier * sprintFactor * gearFactor));
 }
 
 /**
@@ -452,7 +617,7 @@ export function getLocalWeekStartDate(now = Date.now()) {
  * Damage dealt to the Weekly Boss by a single session.
  * Base: 1 DMG/min; 30m+ session = 1.25x Focus Crit; 60m+ = 1.4x Mega Crit!
  */
-export function calculateBossDamageForSession(durationSeconds, multiplier = 1.0) {
+export function calculateBossDamageForSession(durationSeconds, multiplier = 1.0, bossDmgBonusPct = 0) {
   const minutes = Math.max(0, Number(durationSeconds) || 0) / 60;
   if (minutes <= 0) return { damage: 0, critType: null };
 
@@ -468,7 +633,8 @@ export function calculateBossDamageForSession(durationSeconds, multiplier = 1.0)
 
   // Gentle streak synergy (+5% per streak step above 1.0, capped at +25%)
   const streakBonus = Math.min(0.25, Math.max(0, (multiplier - 1) * 0.5));
-  const damage = Math.max(1, Math.round(minutes * critMultiplier * (1 + streakBonus)));
+  const gearFactor = 1 + Math.max(0, Number(bossDmgBonusPct) || 0) / 100;
+  const damage = Math.max(1, Math.round(minutes * critMultiplier * (1 + streakBonus) * gearFactor));
   return { damage, critType };
 }
 
@@ -477,7 +643,8 @@ export function computeWeeklyBoss(
   playerLevel = 1,
   difficulty = 'adaptive',
   claimedBossWeeks = [],
-  now = Date.now()
+  now = Date.now(),
+  bossDmgBonusPct = 0
 ) {
   const weekStart = getLocalWeekStartDate(now);
   const weekKey = `week-${getLocalDateKey(weekStart)}`;
@@ -506,7 +673,7 @@ export function computeWeeklyBoss(
   let critCount = 0;
 
   for (const s of weekSessions) {
-    const hit = calculateBossDamageForSession(s.durationSeconds, s.multiplier || 1.0);
+    const hit = calculateBossDamageForSession(s.durationSeconds, s.multiplier || 1.0, bossDmgBonusPct);
     damageDealt += hit.damage;
     if (hit.critType) critCount += 1;
   }
@@ -539,14 +706,19 @@ export function computeWeeklyBoss(
 /**
  * Gold economy helpers
  */
-export function calculateSessionGold(xpEarned) {
+export function calculateSessionGold(xpEarned, goldBonusPct = 0) {
   const safeXp = Math.max(0, Number(xpEarned) || 0);
   if (safeXp === 0) return 0;
-  return Math.max(1, Math.round(safeXp * GOLD_PER_XP_RATIO));
+  const gearFactor = 1 + Math.max(0, Number(goldBonusPct) || 0) / 100;
+  return Math.max(1, Math.round(safeXp * GOLD_PER_XP_RATIO * gearFactor));
 }
 
 export function computeGoldSummary(state, achievements) {
-  const sessionGold = (state.sessions || []).reduce((acc, s) => acc + calculateSessionGold(s.xpEarned), 0);
+  const sessionGold = (state.sessions || []).reduce(
+    (acc, s) =>
+      acc + (typeof s.goldEarned === 'number' && s.goldEarned > 0 ? s.goldEarned : calculateSessionGold(s.xpEarned)),
+    0
+  );
   const achievementGold = (achievements || [])
     .filter((a) => state.unlockedAchievements && state.unlockedAchievements[a.id])
     .reduce((acc, a) => acc + Math.round(a.xpReward * 0.3), 0);
@@ -968,12 +1140,284 @@ export function computeDailySeries(sessions, days = 7, now = Date.now()) {
 }
 
 /**
+ * Aggregate passive RPG buffs from currently equipped gear.
+ */
+export function computeGearBonuses(equippedGear = {}, inventoryGear = []) {
+  const ownedIds = new Set((inventoryGear || []).map((g) => g.gearId));
+  const attrXp = { mind: 0, body: 0, craft: 0, social: 0, rest: 0 };
+  let allXpPct = 0;
+  let goldPct = 0;
+  let bossDmgPct = 0;
+  let sprintBonusPct = 0;
+  const equippedItems = {};
+  const equippedList = [];
+
+  for (const slot of GEAR_SLOTS) {
+    const gearId = equippedGear && equippedGear[slot.id];
+    const def = gearId && ownedIds.has(gearId) ? GEAR_MAP[gearId] : null;
+    equippedItems[slot.id] = def || null;
+    if (!def) continue;
+    equippedList.push(def);
+    const b = def.bonus || {};
+    allXpPct += Number(b.allXpPct) || 0;
+    goldPct += Number(b.goldPct) || 0;
+    bossDmgPct += Number(b.bossDmgPct) || 0;
+    sprintBonusPct += Number(b.sprintBonusPct) || 0;
+    if (b.attrXp) {
+      for (const [attrId, pct] of Object.entries(b.attrXp)) {
+        if (attrId in attrXp) attrXp[attrId] += Number(pct) || 0;
+      }
+    }
+  }
+
+  const summaryTags = [];
+  if (allXpPct > 0) summaryTags.push(`+${allXpPct}% All XP`);
+  for (const a of ATTRIBUTES) {
+    if (attrXp[a.id] > 0) summaryTags.push(`+${attrXp[a.id]}% ${a.label} XP`);
+  }
+  if (sprintBonusPct > 0) summaryTags.push(`+${sprintBonusPct}% Sprint`);
+  if (goldPct > 0) summaryTags.push(`+${goldPct}% Gold`);
+  if (bossDmgPct > 0) summaryTags.push(`+${bossDmgPct}% Boss DMG`);
+
+  return {
+    allXpPct,
+    attrXp,
+    goldPct,
+    bossDmgPct,
+    sprintBonusPct,
+    equippedItems,
+    equippedList,
+    summaryTags,
+  };
+}
+
+/**
+ * Compute all unopened RPG Loot Chests earned from Hero Levels, Boss Trophies,
+ * Focus Sprints, and Shop Mystery Chests.
+ */
+export function getPendingLootChests(state, playerLevel = 1) {
+  const openedSet = new Set(state.openedChestMilestones || []);
+  const pending = [];
+
+  // 1. Level milestone chests (Lv.2, 4, 6, 8, 10, 12, 14, ...)
+  for (let lv = 2; lv <= Math.min(playerLevel, 60); lv += 2) {
+    const id = `chest-lvl-${lv}`;
+    if (!openedSet.has(id)) {
+      pending.push({
+        id,
+        tier: lv >= 6 ? 'sprint' : 'standard',
+        icon: '🎁',
+        label: `Level ${lv} Hero Chest`,
+        source: `Reached Hero Level ${lv}`,
+      });
+    }
+  }
+
+  // 2. Boss Raid chests (1 guaranteed Rare+ chest per defeated Weekly Boss!)
+  for (const trophy of state.bossTrophies || []) {
+    if (!trophy || !trophy.weekKey) continue;
+    const id = `chest-boss-${trophy.weekKey}`;
+    if (!openedSet.has(id)) {
+      pending.push({
+        id,
+        tier: 'boss',
+        icon: '🐉',
+        label: `${trophy.bossName || 'Boss'} Raid Chest`,
+        source: 'Weekly Boss Victory (Rare+ guaranteed)',
+      });
+    }
+  }
+
+  // 3. Focus Sprint chests (every 3 completed Focus Sprints)
+  const completedSprints = (state.sessions || []).filter((s) => Boolean(s.sprintBonus)).length;
+  for (let n = 3; n <= completedSprints; n += 3) {
+    const id = `chest-sprint-${n}`;
+    if (!openedSet.has(id)) {
+      pending.push({
+        id,
+        tier: 'sprint',
+        icon: '⚡',
+        label: `${n}-Sprint Supply Chest`,
+        source: `Completed ${n} Focus Sprints`,
+      });
+    }
+  }
+
+  // 4. Shop-purchased Mystery Chests
+  for (const c of state.purchasedChests || []) {
+    if (!c || !c.id || openedSet.has(c.id)) continue;
+    pending.push({
+      id: c.id,
+      tier: c.tier || 'boss',
+      icon: '🧰',
+      label: 'Tavern Mystery Chest',
+      source: 'Tavern Shop (Rare+ guaranteed)',
+    });
+  }
+
+  return pending;
+}
+
+/**
+ * Roll a single RPG Loot Chest drop with duplicate-friendly smart weighting.
+ */
+export function rollLootChest({ tier = 'standard', ownedGearIds = [], rng = Math.random } = {}) {
+  const weights =
+    tier === 'boss'
+      ? { common: 0, rare: 45, epic: 38, legendary: 17 }
+      : tier === 'sprint'
+        ? { common: 28, rare: 42, epic: 22, legendary: 8 }
+        : { common: 48, rare: 34, epic: 14, legendary: 4 };
+
+  const roll = rng() * 100;
+  let rarity = 'common';
+  let acc = 0;
+  for (const r of ['common', 'rare', 'epic', 'legendary']) {
+    acc += weights[r];
+    if (roll < acc) {
+      rarity = r;
+      break;
+    }
+  }
+
+  const ownedSet = new Set(ownedGearIds || []);
+  const rarityPool = GEAR_CATALOG.filter((g) => g.rarity === rarity);
+  const unownedInRarity = rarityPool.filter((g) => !ownedSet.has(g.id));
+  const unownedAny = GEAR_CATALOG.filter((g) => !ownedSet.has(g.id) && (tier !== 'boss' || g.rarity !== 'common'));
+
+  let chosen = null;
+  if (unownedInRarity.length > 0) {
+    chosen = unownedInRarity[Math.floor(rng() * unownedInRarity.length)];
+  } else if (unownedAny.length > 0 && rng() < 0.72) {
+    chosen = unownedAny[Math.floor(rng() * unownedAny.length)];
+  } else {
+    const fallbackPool = rarityPool.length > 0 ? rarityPool : GEAR_CATALOG;
+    chosen = fallbackPool[Math.floor(rng() * fallbackPool.length)];
+  }
+
+  const isDuplicate = ownedSet.has(chosen.id);
+  const duplicateGold = isDuplicate ? RARITY_META[chosen.rarity].duplicateGold : 0;
+
+  return {
+    gear: chosen,
+    rarityMeta: RARITY_META[chosen.rarity],
+    isDuplicate,
+    duplicateGold,
+  };
+}
+
+/**
+ * Evaluate unlock & active status of all RPG Visual Themes.
+ */
+export function getThemeStatusList(state, playerLevel = 1) {
+  const purchasedSet = new Set(state.unlockedThemes || ['twilight']);
+  const activeId = RPG_THEME_MAP[state.activeTheme] ? state.activeTheme : 'twilight';
+
+  return RPG_THEMES.map((theme) => {
+    const unlockedByLevel = playerLevel >= theme.unlockLevel;
+    const purchased = purchasedSet.has(theme.id);
+    const unlocked = theme.id === 'twilight' || unlockedByLevel || purchased;
+    return {
+      ...theme,
+      unlocked,
+      unlockedByLevel,
+      purchased,
+      active: activeId === theme.id && unlocked,
+    };
+  });
+}
+
+/**
+ * Build a 91-day (13-week) Monday-aligned RPG Activity Heatmap ending today.
+ */
+export function computeActivityHeatmap(sessions = [], shieldedDates = [], weeks = 13, now = Date.now()) {
+  const today = parseLocalDateKey(getLocalDateKey(now));
+  const todayKey = getLocalDateKey(today);
+  // Align end of grid to Sunday of the current week so rows are clean Mon..Sun (0..6)
+  const todayDow = (today.getDay() + 6) % 7; // Mon=0 .. Sun=6
+  const startDay = new Date(today.getTime() - ((weeks - 1) * 7 + todayDow) * 86400000);
+  const totalDays = (weeks - 1) * 7 + todayDow + 1;
+
+  const byDate = new Map();
+  for (const s of sessions || []) {
+    const key = getLocalDateKey(s.timestamp);
+    const prev = byDate.get(key) || { seconds: 0, xp: 0, sessions: 0 };
+    prev.seconds += Number(s.durationSeconds) || 0;
+    prev.xp += Number(s.xpEarned) || 0;
+    prev.sessions += 1;
+    byDate.set(key, prev);
+  }
+
+  const shieldSet = new Set(shieldedDates || []);
+  const cells = [];
+  const monthLabels = [];
+  let lastMonth = -1;
+  let activeDays = 0;
+  let totalSeconds = 0;
+  let bestDay = null;
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDay.getTime() + i * 86400000);
+    const dateKey = getLocalDateKey(d);
+    const col = Math.floor(i / 7);
+    const row = i % 7; // 0=Mon .. 6=Sun
+    const agg = byDate.get(dateKey) || { seconds: 0, xp: 0, sessions: 0 };
+    const mins = agg.seconds / 60;
+    let level = 0;
+    if (mins >= 120) level = 4;
+    else if (mins >= 60) level = 3;
+    else if (mins >= 30) level = 2;
+    else if (mins > 0) level = 1;
+
+    const shielded = shieldSet.has(dateKey);
+    if (agg.seconds > 0) {
+      activeDays += 1;
+      totalSeconds += agg.seconds;
+      if (!bestDay || agg.seconds > bestDay.seconds) {
+        bestDay = { dateKey, seconds: agg.seconds, sessions: agg.sessions };
+      }
+    }
+
+    if (row === 0 && d.getMonth() !== lastMonth) {
+      monthLabels.push({
+        col,
+        label: d.toLocaleDateString(undefined, { month: 'short' }),
+      });
+      lastMonth = d.getMonth();
+    }
+
+    cells.push({
+      dateKey,
+      col,
+      row,
+      seconds: agg.seconds,
+      xp: agg.xp,
+      sessions: agg.sessions,
+      level,
+      shielded,
+      isToday: dateKey === todayKey,
+    });
+  }
+
+  return {
+    weeks,
+    totalDays,
+    cells,
+    monthLabels,
+    activeDays,
+    totalSeconds,
+    bestDay,
+  };
+}
+
+/**
  * Compute full derived snapshot of the game state for rendering.
  */
 export function computeDerivedState(state, now = Date.now()) {
   const activities = state.activities || [];
   const sessions = state.sessions || [];
-  const streak = calculateStreak(sessions, now);
+  const shieldedDates = state.shieldedDates || [];
+  const streak = calculateStreak(sessions, now, shieldedDates);
   const activityStats = computeActivityStats(activities, sessions, now);
   const attributeStats = computeAttributeStats(activityStats);
   const heroClass = computeHeroClass(attributeStats);
@@ -994,12 +1438,29 @@ export function computeDerivedState(state, now = Date.now()) {
   const totalPlayerXp = sessionXp + bonusXp + achievementXp;
   const playerLevelInfo = getPlayerLevelInfo(totalPlayerXp);
 
+  const gearBonuses = computeGearBonuses(state.equippedGear || {}, state.inventoryGear || []);
+  const pendingChests = getPendingLootChests(state, playerLevelInfo.level);
+  const themes = getThemeStatusList(state, playerLevelInfo.level);
+  const activeThemeObj = themes.find((t) => t.active) || themes[0];
+
+  const shieldPurchased = (state.shieldPurchases || []).length;
+  const shieldUsed = shieldedDates.length;
+  const shieldAvailable = Math.max(0, shieldPurchased - shieldUsed);
+  const streakShields = {
+    available: shieldAvailable,
+    purchased: shieldPurchased,
+    used: shieldUsed,
+    max: STREAK_SHIELD_MAX,
+    cost: STREAK_SHIELD_COST,
+  };
+
   const weeklyBoss = computeWeeklyBoss(
     sessions,
     playerLevelInfo.level,
     state.bossDifficulty || 'adaptive',
     state.claimedBossWeeks || [],
-    now
+    now,
+    gearBonuses.bossDmgPct
   );
   const gold = computeGoldSummary(state, achievements);
 
@@ -1010,9 +1471,14 @@ export function computeDerivedState(state, now = Date.now()) {
 
   return {
     streak,
+    streakShields,
     activityStats,
     attributeStats,
     heroClass,
+    gearBonuses,
+    pendingChests,
+    themes,
+    activeTheme: activeThemeObj,
     weeklyBoss,
     gold,
     dailyQuests,
@@ -1023,6 +1489,7 @@ export function computeDerivedState(state, now = Date.now()) {
     todayXp,
     totalSeconds,
     dailySeries7d: computeDailySeries(sessions, 7, now),
+    heatmap90d: computeActivityHeatmap(sessions, shieldedDates, 13, now),
   };
 }
 

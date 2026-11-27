@@ -6,15 +6,21 @@ import {
   calculateSessionGold,
   calculateSessionXp,
   calculateStreak,
+  computeActivityHeatmap,
+  computeAutoShieldDates,
   computeDerivedState,
+  computeGearBonuses,
   computeHeroClass,
   computeWeeklyBoss,
   filterSessionsByTimeframe,
   formatDurationShort,
   formatStopwatch,
   getActivityLevelInfo,
+  getPendingLootChests,
   getPlayerLevelInfo,
   getRewardCooldownInfo,
+  getThemeStatusList,
+  rollLootChest,
 } from '../src/rpgEngine.js';
 
 import {
@@ -506,4 +512,108 @@ test('GitHub Gist Sync round-trips vault payload and auto-discovers the latest p
     { id: 'newest', updated_at: '2026-11-26T18:00:00Z', files: { [GIST_FILENAME]: {} } },
   ]);
   assert.equal(found.id, 'newest');
+});
+
+test('RPG Visual Themes unlock automatically by Hero Level or early Gold purchase', () => {
+  const state = createDefaultState();
+  const atLv1 = getThemeStatusList(state, 1);
+  assert.equal(atLv1.filter((t) => t.unlocked).length, 1); // twilight only
+
+  // At Lv.6 -> twilight (1), cyber (3), sakura (5) unlock automatically!
+  const atLv6 = getThemeStatusList(state, 6);
+  assert.deepEqual(
+    atLv6.filter((t) => t.unlocked).map((t) => t.id),
+    ['twilight', 'cyber', 'sakura']
+  );
+
+  // Buying dragon early unlocks it immediately
+  state.unlockedThemes.push('dragon');
+  state.activeTheme = 'dragon';
+  const afterBuy = getThemeStatusList(state, 6);
+  const dragon = afterBuy.find((t) => t.id === 'dragon');
+  assert.equal(dragon.unlocked, true);
+  assert.equal(dragon.active, true);
+});
+
+test('RPG Loot Chests, Equipment Buffs & Boss Raid drops work cleanly', () => {
+  const state = createDefaultState();
+  state.bossTrophies.push({ weekKey: 'week-2026-11-23', bossId: 'wyrm', bossName: 'Wyrm', bossIcon: '🐉', maxHp: 300, defeatedAt: Date.now() });
+  for (let i = 0; i < 3; i++) {
+    state.sessions.push({ id: `sp_${i}`, activityId: 'act_coding', durationSeconds: 1500, xpEarned: 300, multiplier: 1, timestamp: Date.now(), source: 'sprint', sprintBonus: true, note: '' });
+  }
+  const chests = getPendingLootChests(state, 6);
+  // Lv.2, Lv.4, Lv.6 + 1 Boss chest + 1 3-Sprint chest = 5 chests!
+  assert.equal(chests.length, 5);
+
+  // Boss tier never rolls Common
+  for (let i = 0; i < 20; i++) {
+    const drop = rollLootChest({ tier: 'boss', ownedGearIds: [] });
+    assert.notEqual(drop.gear.rarity, 'common');
+  }
+
+  // Equip Neon Cyberdeck (+9% Craft XP, +4% Sprint) + Merchant's Compass (+5% Gold) + Hearthfire Sigil (+6% Boss DMG)
+  state.inventoryGear = [
+    { id: 'g1', gearId: 'wpn_cyberdeck', obtainedAt: Date.now(), source: 'Test' },
+    { id: 'g2', gearId: 'rel_compass', obtainedAt: Date.now(), source: 'Test' },
+    { id: 'g3', gearId: 'aur_hearth_sigil', obtainedAt: Date.now(), source: 'Test' },
+  ];
+  state.equippedGear = { weapon: 'wpn_cyberdeck', armor: null, relic: 'rel_compass', aura: 'aur_hearth_sigil' };
+  const bonuses = computeGearBonuses(state.equippedGear, state.inventoryGear);
+  assert.equal(bonuses.attrXp.craft, 9);
+  assert.equal(bonuses.sprintBonusPct, 4);
+  assert.equal(bonuses.goldPct, 5);
+  assert.equal(bonuses.bossDmgPct, 6);
+
+  const baseXp = calculateSessionXp(1500, 1.0, true);
+  const boostedXp = calculateSessionXp(1500, 1.0, true, { allXpPct: bonuses.allXpPct, attrXpPct: bonuses.attrXp.craft, sprintBonusPct: bonuses.sprintBonusPct });
+  assert.ok(boostedXp > baseXp, 'Equipped gear boosts Sprint & Craft XP');
+  assert.ok(calculateSessionGold(boostedXp, bonuses.goldPct) > calculateSessionGold(boostedXp, 0));
+  assert.ok(calculateBossDamageForSession(1800, 1.0, bonuses.bossDmgPct).damage > calculateBossDamageForSession(1800, 1.0, 0).damage);
+});
+
+test('90-Day Heatmap & Streak Freeze Shield protect missed days and merge cleanly in Cloud Sync', () => {
+  const now = new Date(2026, 10, 27, 12, 0, 0).getTime(); // Nov 27, 2026
+  const dayMs = 86400000;
+  // Active Nov 24 & Nov 25, missed Nov 26 (yesterday!)
+  const sessions = [
+    { id: 's1', activityId: 'act_coding', durationSeconds: 3600, xpEarned: 600, multiplier: 1, timestamp: now - 3 * dayMs },
+    { id: 's2', activityId: 'act_coding', durationSeconds: 7500, xpEarned: 1250, multiplier: 1.1, timestamp: now - 2 * dayMs },
+  ];
+
+  // Without a shield, streak broke to 0 on Nov 27
+  assert.equal(calculateStreak(sessions, now, []).current, 0);
+
+  // With 1 available shield, auto-shield detects Nov 26 ('2026-11-26')!
+  const toShield = computeAutoShieldDates(sessions, [], 1, now);
+  assert.deepEqual(toShield, ['2026-11-26']);
+
+  // Applying that shield restores the 3-day unbroken streak!
+  const protectedStreak = calculateStreak(sessions, now, toShield);
+  assert.equal(protectedStreak.current, 3);
+  assert.equal(protectedStreak.shieldedCount, 1);
+
+  // 90-Day Heatmap marks active days & shielded day accurately
+  const heatmap = computeActivityHeatmap(sessions, toShield, 13, now);
+  assert.equal(heatmap.activeDays, 2);
+  assert.ok(heatmap.cells.some((c) => c.dateKey === '2026-11-26' && c.shielded === true));
+  assert.ok(heatmap.cells.some((c) => c.dateKey === '2026-11-25' && c.level === 4));
+
+  // Cloud Sync mergeStates unions gear, unlocked themes, opened chests & shields
+  const pc = createDefaultState();
+  pc.unlockedThemes = ['twilight', 'dragon'];
+  pc.inventoryGear = [{ id: 'g1', gearId: 'wpn_cyberdeck', obtainedAt: now, source: 'PC' }];
+  pc.shieldPurchases = [{ id: 'sh1', purchasedAt: now }];
+  pc.shieldedDates = ['2026-11-26'];
+
+  const phone = createDefaultState();
+  phone.unlockedThemes = ['twilight', 'astral'];
+  phone.inventoryGear = [{ id: 'g2', gearId: 'rel_gm_knight', obtainedAt: now, source: 'Phone' }];
+  phone.openedChestMilestones = ['chest-lvl-2'];
+
+  const merged = mergeStates(pc, phone);
+  assert.ok(merged.unlockedThemes.includes('dragon') && merged.unlockedThemes.includes('astral'));
+  assert.equal(merged.inventoryGear.length, 2);
+  assert.ok(merged.openedChestMilestones.includes('chest-lvl-2'));
+  assert.equal(merged.shieldPurchases.length, 1);
+  assert.deepEqual(merged.shieldedDates, ['2026-11-26']);
 });
