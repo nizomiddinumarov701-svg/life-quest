@@ -39,6 +39,8 @@ export const BOSS_BOUNTY_GOLD = 200;
 export const STREAK_SHIELD_COST = 280;
 export const STREAK_SHIELD_MAX = 3;
 export const MYSTERY_CHEST_COST = 240;
+export const MAX_GEAR_XP_BONUS_PCT = 30; // Caps total passive XP gear boost to keep economy balanced
+export const REFUND_WINDOW_MS = 10 * 60 * 1000; // 10-minute accidental-click refund window for treats
 
 /**
  * Unlockable RPG Visual Themes & Ambient Particle FX Styles
@@ -298,8 +300,16 @@ export function calculateStreak(sessions, now = Date.now(), shieldedDates = []) 
 /**
  * Determine if available Streak Freeze Shields should auto-protect recently missed days
  * to preserve an active streak. Returns array of YYYY-MM-DD date keys to shield.
+ * When `shieldPurchases` is provided, prevents retroactively shielding days that ended
+ * before the shield was owned.
  */
-export function computeAutoShieldDates(sessions, shieldedDates = [], availableShields = 0, now = Date.now()) {
+export function computeAutoShieldDates(
+  sessions,
+  shieldedDates = [],
+  availableShields = 0,
+  now = Date.now(),
+  shieldPurchases = null
+) {
   const avail = Math.max(0, Math.floor(Number(availableShields) || 0));
   if (avail <= 0 || !sessions || sessions.length === 0) return [];
 
@@ -308,35 +318,82 @@ export function computeAutoShieldDates(sessions, shieldedDates = [], availableSh
   const combined = new Set([...sessionDates, ...existingShields]);
 
   const today = parseLocalDateKey(getLocalDateKey(now));
-  const todayKey = getLocalDateKey(today);
   const yesterday = new Date(today.getTime() - 86400000);
   const yesterdayKey = getLocalDateKey(yesterday);
 
-  // If already active or shielded yesterday (or today with yesterday covered), no emergency gap right now
+  // If yesterday was already active or shielded, there is no broken gap to repair right now
   if (combined.has(yesterdayKey)) return [];
-  // If today was logged, we only check gap immediately before today (yesterday..N days back)
-  // If today wasn't logged yet, we ALSO check gap starting from yesterday backwards
+
+  const maxLookback = Math.min(avail, STREAK_SHIELD_MAX);
+  let candidateDays = null;
   const missingDays = [];
-  for (let offset = 1; offset <= Math.min(avail, STREAK_SHIELD_MAX); offset++) {
+  for (let offset = 1; offset <= maxLookback; offset++) {
     const d = new Date(today.getTime() - offset * 86400000);
     const key = getLocalDateKey(d);
     if (combined.has(key)) {
-      // Found the anchor day of the previous streak! Bridge all missingDays!
-      return missingDays;
+      candidateDays = missingDays;
+      break;
     }
     missingDays.push(key);
   }
 
-  // Check if the day right after our max bridge window has activity (e.g. missed 1 day with 1 shield -> check 2 days ago!)
-  const anchorDay = new Date(today.getTime() - (missingDays.length + 1) * 86400000);
-  if (missingDays.length > 0 && missingDays.length <= avail && combined.has(getLocalDateKey(anchorDay))) {
-    return missingDays;
+  if (!candidateDays && missingDays.length > 0 && missingDays.length <= avail) {
+    const anchorDay = new Date(today.getTime() - (missingDays.length + 1) * 86400000);
+    if (combined.has(getLocalDateKey(anchorDay))) {
+      candidateDays = missingDays;
+    }
   }
 
-  // Wait: if today is active and yesterday was missed, the loop above checked offset=1 (missing) and anchorDay=2 days ago!
-  // Don't burn shields if user hasn't even had a prior day before yesterday.
-  if (todayKey && missingDays.length === 0) return [];
-  return [];
+  if (!candidateDays || candidateDays.length === 0) return [];
+
+  // Enforce purchase-timestamp eligibility when purchase history is supplied (no retroactive patching)
+  if (Array.isArray(shieldPurchases)) {
+    const usedCount = (shieldedDates || []).length;
+    const unusedTimes = shieldPurchases
+      .map((p) => Number(p && p.purchasedAt) || 0)
+      .sort((a, b) => a - b)
+      .slice(usedCount);
+    if (unusedTimes.length < candidateDays.length) return [];
+
+    // Oldest missed day first; each must have an unused shield owned before that day ended
+    const oldestFirst = [...candidateDays].sort();
+    for (let i = 0; i < oldestFirst.length; i++) {
+      const dayEndMs = parseLocalDateKey(oldestFirst[i]).getTime() + 86400000;
+      if (unusedTimes[i] >= dayEndMs) {
+        return [];
+      }
+    }
+  }
+
+  return candidateDays;
+}
+
+/**
+ * Blend Primary (70%) + Secondary Combo (30%) gear attribute XP bonuses and enforce cap.
+ */
+export function getEffectiveGearXpBonus(gearBonuses, activity = null) {
+  if (!gearBonuses) return { allXpPct: 0, attrXpPct: 0, sprintBonusPct: 0 };
+  const attrMap = gearBonuses.attrXp || {};
+  let attrXpPct = 0;
+  if (activity) {
+    const primaryPct = Number(attrMap[activity.attribute]) || 0;
+    const hasSecondary = activity.secondaryAttribute && activity.secondaryAttribute !== activity.attribute;
+    if (hasSecondary) {
+      const secPct = Number(attrMap[activity.secondaryAttribute]) || 0;
+      attrXpPct = Math.round(primaryPct * 0.7 + secPct * 0.3);
+    } else {
+      attrXpPct = primaryPct;
+    }
+  }
+  const allXpPct = Math.max(0, Number(gearBonuses.allXpPct) || 0);
+  const cappedTotal = Math.min(MAX_GEAR_XP_BONUS_PCT, allXpPct + attrXpPct);
+  const effectiveAll = Math.min(allXpPct, cappedTotal);
+  const effectiveAttr = Math.max(0, cappedTotal - effectiveAll);
+  return {
+    allXpPct: effectiveAll,
+    attrXpPct: effectiveAttr,
+    sprintBonusPct: Math.max(0, Number(gearBonuses.sprintBonusPct) || 0),
+  };
 }
 
 /**
@@ -349,10 +406,10 @@ export function calculateSessionXp(durationSeconds, streakMultiplier = 1.0, spri
   const minutes = safeSec / 60;
   const extraSprintPct = gearBonus ? Math.max(0, Number(gearBonus.sprintBonusPct) || 0) : 0;
   const sprintFactor = sprintCompleted ? SPRINT_BONUS_MULTIPLIER + extraSprintPct / 100 : 1.0;
-  const gearXpPct = gearBonus
+  const rawGearXpPct = gearBonus
     ? Math.max(0, (Number(gearBonus.allXpPct) || 0) + (Number(gearBonus.attrXpPct) || 0))
     : 0;
-  const gearFactor = 1 + gearXpPct / 100;
+  const gearFactor = 1 + Math.min(MAX_GEAR_XP_BONUS_PCT, rawGearXpPct) / 100;
   return Math.max(1, Math.round(minutes * BASE_XP_PER_MINUTE * streakMultiplier * sprintFactor * gearFactor));
 }
 
@@ -713,6 +770,37 @@ export function calculateSessionGold(xpEarned, goldBonusPct = 0) {
   return Math.max(1, Math.round(safeXp * GOLD_PER_XP_RATIO * gearFactor));
 }
 
+/**
+ * Sum conflict-free bonusLedger entries, falling back to legacy bonusXp / bonusGold counters.
+ */
+export function sumBonusLedger(state) {
+  if (Array.isArray(state && state.bonusLedger) && state.bonusLedger.length > 0) {
+    let bonusXp = 0;
+    let bonusGold = 0;
+    for (const entry of state.bonusLedger) {
+      if (!entry) continue;
+      bonusXp += Math.max(0, Number(entry.xp) || 0);
+      bonusGold += Math.max(0, Number(entry.gold) || 0);
+    }
+    return { bonusXp, bonusGold };
+  }
+  const bonusXp = Math.max(0, Math.round(Number(state && state.bonusXp) || 0));
+  const bonusGold =
+    typeof (state && state.bonusGold) === 'number'
+      ? Math.max(0, Math.round(state.bonusGold))
+      : ((state && state.claimedQuests) || []).length * 30;
+  return { bonusXp, bonusGold };
+}
+
+/**
+ * Check whether a Tavern reward redemption is still within the accidental-click refund window.
+ */
+export function isRedemptionRefundable(redemption, now = Date.now()) {
+  if (!redemption || redemption.refundable === false) return false;
+  const ageMs = now - (Number(redemption.redeemedAt) || 0);
+  return ageMs >= 0 && ageMs <= REFUND_WINDOW_MS;
+}
+
 export function computeGoldSummary(state, achievements) {
   const sessionGold = (state.sessions || []).reduce(
     (acc, s) =>
@@ -723,11 +811,7 @@ export function computeGoldSummary(state, achievements) {
     .filter((a) => state.unlockedAchievements && state.unlockedAchievements[a.id])
     .reduce((acc, a) => acc + Math.round(a.xpReward * 0.3), 0);
   const bossGold = (state.claimedBossWeeks || []).length * BOSS_BOUNTY_GOLD;
-  // Bonus gold from quests (either explicitly tracked or derived smoothly from claimed quests)
-  const bonusGold =
-    typeof state.bonusGold === 'number'
-      ? state.bonusGold
-      : (state.claimedQuests || []).length * 30;
+  const { bonusGold } = sumBonusLedger(state);
 
   const totalEarned = sessionGold + achievementGold + bossGold + bonusGold;
 
@@ -1431,7 +1515,7 @@ export function computeDerivedState(state, now = Date.now()) {
   const achievements = evaluateAchievements(state, activityStats, streak);
 
   const sessionXp = sessions.reduce((acc, s) => acc + s.xpEarned, 0);
-  const bonusXp = state.bonusXp || 0;
+  const { bonusXp } = sumBonusLedger(state);
   const achievementXp = achievements
     .filter((a) => state.unlockedAchievements && state.unlockedAchievements[a.id])
     .reduce((acc, a) => acc + a.xpReward, 0);

@@ -18,12 +18,16 @@ const FINE_POINTER =
   window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 let fxEnabled = true;
+let ambientControl = null;
 
 export function setFxEnabled(enabled) {
   fxEnabled = Boolean(enabled);
   const ambient = document.getElementById('ambient-canvas');
   if (ambient) {
     ambient.style.opacity = fxEnabled ? '1' : '0';
+  }
+  if (ambientControl) {
+    ambientControl.syncState();
   }
 }
 
@@ -112,9 +116,30 @@ export function initAmbientCanvas() {
     ctx.fill();
   }
 
-  function tick() {
+  function stopLoop() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    ctx.clearRect(0, 0, width, height);
+  }
+
+  function startLoop() {
+    if (rafId !== null || !fxEnabled || document.hidden) return;
     rafId = requestAnimationFrame(tick);
-    if (!fxEnabled || document.hidden) return;
+  }
+
+  function syncState() {
+    if (fxEnabled && !document.hidden) startLoop();
+    else stopLoop();
+  }
+
+  function tick() {
+    rafId = null;
+    if (!fxEnabled || document.hidden) {
+      ctx.clearRect(0, 0, width, height);
+      return;
+    }
 
     ctx.clearRect(0, 0, width, height);
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -222,12 +247,18 @@ export function initAmbientCanvas() {
       }
       ctx.restore();
     }
+    rafId = requestAnimationFrame(tick);
   }
 
-  tick();
+  ambientControl = { syncState };
+  const onVis = () => syncState();
+  document.addEventListener('visibilitychange', onVis);
+  syncState();
 
   return () => {
-    if (rafId) cancelAnimationFrame(rafId);
+    document.removeEventListener('visibilitychange', onVis);
+    stopLoop();
+    ambientControl = null;
   };
 }
 

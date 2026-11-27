@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  MAX_GEAR_XP_BONUS_PCT,
+  REFUND_WINDOW_MS,
   calculateBossDamageForSession,
   calculateSessionGold,
   calculateSessionXp,
@@ -16,11 +18,14 @@ import {
   formatDurationShort,
   formatStopwatch,
   getActivityLevelInfo,
+  getEffectiveGearXpBonus,
   getPendingLootChests,
   getPlayerLevelInfo,
   getRewardCooldownInfo,
   getThemeStatusList,
+  isRedemptionRefundable,
   rollLootChest,
+  sumBonusLedger,
 } from '../src/rpgEngine.js';
 
 import {
@@ -616,4 +621,95 @@ test('90-Day Heatmap & Streak Freeze Shield protect missed days and merge cleanl
   assert.ok(merged.openedChestMilestones.includes('chest-lvl-2'));
   assert.equal(merged.shieldPurchases.length, 1);
   assert.deepEqual(merged.shieldedDates, ['2026-11-26']);
+});
+
+test('Bonus XP/Gold ledger preserves offline multi-device claims and migrates legacy totals losslessly', () => {
+  const now = Date.now();
+  // Legacy state with scalar bonusXp/bonusGold migrates deterministically into legacy_bonus_baseline
+  const legacyMigrated = sanitizeState({
+    ...createDefaultState(),
+    bonusXp: 350,
+    bonusGold: 120,
+    bonusLedger: undefined,
+  });
+  assert.equal(legacyMigrated.bonusLedger.length, 1);
+  assert.equal(legacyMigrated.bonusLedger[0].id, 'legacy_bonus_baseline');
+  assert.deepEqual(sumBonusLedger(legacyMigrated), { bonusXp: 350, bonusGold: 120 });
+
+  // Multi-device offline claims: PC claims +150 XP / +30g, Phone claims +75 XP / +30g + 150g duplicate dismantle
+  const pc = sanitizeState(legacyMigrated);
+  pc.bonusLedger.push({ id: 'quest:dq-focus-2026-11-27', xp: 150, gold: 30, reason: 'Daily Quest', timestamp: now });
+  pc.bonusXp = 500;
+  pc.bonusGold = 150;
+
+  const phone = sanitizeState(legacyMigrated);
+  phone.bonusLedger.push(
+    { id: 'quest:dq-warmup-2026-11-27', xp: 75, gold: 30, reason: 'Daily Quest', timestamp: now + 100 },
+    { id: 'chest_dupe:chest-lvl-4', xp: 0, gold: 150, reason: 'Duplicate Dismantle', timestamp: now + 200 }
+  );
+  phone.bonusXp = 425;
+  phone.bonusGold = 300;
+
+  const merged = mergeStates(pc, phone);
+  // All 3 unique entries + single shared baseline are kept with zero loss or double-counting!
+  assert.equal(merged.bonusLedger.length, 4);
+  assert.equal(merged.bonusXp, 350 + 150 + 75);
+  assert.equal(merged.bonusGold, 120 + 30 + 30 + 150);
+  const derived = computeDerivedState(merged, now);
+  assert.equal(derived.gold.totalEarned, 330);
+});
+
+test('Streak Freeze Shield requires shield ownership before missed day ends (anti-loophole)', () => {
+  const now = new Date(2026, 10, 27, 12, 0, 0).getTime(); // Nov 27, 2026 12:00
+  const dayMs = 86400000;
+  const sessions = [
+    { id: 's1', activityId: 'act_coding', durationSeconds: 3600, xpEarned: 600, multiplier: 1, timestamp: now - 3 * dayMs },
+    { id: 's2', activityId: 'act_coding', durationSeconds: 3600, xpEarned: 600, multiplier: 1, timestamp: now - 2 * dayMs },
+  ];
+
+  // Bought AFTER missing Nov 26 -> cannot retroactively patch Nov 26!
+  const boughtTooLate = [{ id: 'sh_late', purchasedAt: now }];
+  assert.deepEqual(computeAutoShieldDates(sessions, [], 1, now, boughtTooLate), []);
+
+  // Bought BEFORE end of Nov 26 -> legitimately saves Nov 26!
+  const boughtInTime = [{ id: 'sh_early', purchasedAt: new Date(2026, 10, 25, 18, 0, 0).getTime() }];
+  assert.deepEqual(computeAutoShieldDates(sessions, [], 1, now, boughtInTime), ['2026-11-26']);
+});
+
+test('Effective gear XP blends 70/30 combo attributes and enforces the 30% gear XP cap', () => {
+  const bonuses = {
+    allXpPct: 4,
+    attrXp: { craft: 10, mind: 10, body: 0, social: 0, rest: 0 },
+    sprintBonusPct: 4,
+    goldPct: 5,
+    bossDmgPct: 6,
+  };
+
+  // Single-attribute activity gets full primary attribute bonus
+  const craftOnly = getEffectiveGearXpBonus(bonuses, { attribute: 'craft', secondaryAttribute: null });
+  assert.equal(craftOnly.attrXpPct, 10);
+  assert.equal(craftOnly.allXpPct, 4);
+
+  // Combo activity blends 70% Primary (craft: 10) + 30% Secondary (body: 0) = 7%
+  const comboCraftBody = getEffectiveGearXpBonus(bonuses, { attribute: 'craft', secondaryAttribute: 'body' });
+  assert.equal(comboCraftBody.attrXpPct, 7);
+
+  // Combo activity with bonuses in secondary (body: 0, mind: 10) gets 30% of mind = 3%!
+  const comboBodyMind = getEffectiveGearXpBonus(bonuses, { attribute: 'body', secondaryAttribute: 'mind' });
+  assert.equal(comboBodyMind.attrXpPct, 3);
+
+  // Gear XP boost caps cleanly at MAX_GEAR_XP_BONUS_PCT (30%) even with extreme bonuses
+  const capped = getEffectiveGearXpBonus(
+    { allXpPct: 25, attrXp: { craft: 20, mind: 0, body: 0, social: 0, rest: 0 }, sprintBonusPct: 10 },
+    { attribute: 'craft', secondaryAttribute: null }
+  );
+  assert.equal(capped.allXpPct + capped.attrXpPct, MAX_GEAR_XP_BONUS_PCT);
+  assert.equal(calculateSessionXp(600, 1.0, false, capped), Math.round(100 * (1 + MAX_GEAR_XP_BONUS_PCT / 100)));
+});
+
+test('Tavern reward refunds enforce the 10-minute grace window', () => {
+  const now = new Date(2026, 10, 27, 15, 0, 0).getTime();
+  assert.equal(isRedemptionRefundable({ id: 'r1', redeemedAt: now - 2 * 60 * 1000 }, now), true);
+  assert.equal(isRedemptionRefundable({ id: 'r2', redeemedAt: now - REFUND_WINDOW_MS }, now), true);
+  assert.equal(isRedemptionRefundable({ id: 'r3', redeemedAt: now - REFUND_WINDOW_MS - 1000 }, now), false);
 });

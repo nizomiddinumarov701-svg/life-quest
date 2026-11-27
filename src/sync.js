@@ -113,8 +113,12 @@ export function mergeStates(localRaw, remoteRaw) {
   // Keep each device's local light/dark, sound & FX preferences
   const settings = { ...local.settings };
 
-  const bonusXp = Math.max(Number(local.bonusXp) || 0, Number(remote.bonusXp) || 0);
-  const bonusGold = Math.max(Number(local.bonusGold) || 0, Number(remote.bonusGold) || 0);
+  // Conflict-free bonus XP & Gold ledger merge (never loses offline quest/boss/chest bonuses!)
+  const bonusLedger = mergeById(local.bonusLedger, remote.bonusLedger, deletedIds, 'id').sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+  const bonusXp = bonusLedger.reduce((acc, e) => acc + e.xp, 0);
+  const bonusGold = bonusLedger.reduce((acc, e) => acc + e.gold, 0);
   const updatedAt = Math.max(Number(local.updatedAt) || 0, Number(remote.updatedAt) || 0);
 
   return sanitizeState({
@@ -141,6 +145,7 @@ export function mergeStates(localRaw, remoteRaw) {
     rewards,
     rewardRedemptions,
     unlockedAchievements,
+    bonusLedger,
     bonusXp,
     bonusGold,
     deletedIds,

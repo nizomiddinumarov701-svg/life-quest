@@ -160,6 +160,7 @@ export function createDefaultState() {
     rewards: createStarterRewards(),
     rewardRedemptions: [],
     unlockedAchievements: {},
+    bonusLedger: [],
     bonusXp: 0,
     bonusGold: 0,
     deletedIds: {},
@@ -219,8 +220,11 @@ export function createSampleAdventureState(now = Date.now()) {
     'renaissance': now - 2 * day,
     'session-ten': now - 1 * day,
   };
-  state.claimedQuests = [`dq-warmup-${getLocalDateKey(now - day)}`];
+  const sampleQuestId = `dq-warmup-${getLocalDateKey(now - day)}`;
+  state.claimedQuests = [sampleQuestId];
+  state.bonusLedger = [{ id: `bonus_quest_${sampleQuestId}`, xp: 75, gold: 23, reason: 'Sample Quest', timestamp: now - day }];
   state.bonusXp = 75;
+  state.bonusGold = 23;
   return state;
 }
 
@@ -330,11 +334,39 @@ export function sanitizeState(raw) {
         )
       : {};
 
-  const bonusXp = Math.max(0, Math.round(Number(raw.bonusXp) || 0));
-  const bonusGold =
+  const rawBonusXp = Math.max(0, Math.round(Number(raw.bonusXp) || 0));
+  const rawBonusGold =
     typeof raw.bonusGold === 'number'
       ? Math.max(0, Math.round(raw.bonusGold))
       : claimedQuests.length * 30;
+
+  let bonusLedger = Array.isArray(raw.bonusLedger)
+    ? raw.bonusLedger
+        .filter((e) => e && typeof e.id === 'string')
+        .map((e) => ({
+          id: e.id,
+          xp: Math.max(0, Math.round(Number(e.xp) || 0)),
+          gold: Math.max(0, Math.round(Number(e.gold) || 0)),
+          reason: typeof e.reason === 'string' ? e.reason.trim().slice(0, 80) : 'Bonus',
+          timestamp: Number(e.timestamp) || Date.now(),
+        }))
+    : [];
+
+  // Automatic zero-loss migration from legacy bonusXp/bonusGold counters into deterministic ledger baseline
+  if (bonusLedger.length === 0 && (rawBonusXp > 0 || rawBonusGold > 0)) {
+    bonusLedger = [
+      {
+        id: 'legacy_bonus_baseline',
+        xp: rawBonusXp,
+        gold: rawBonusGold,
+        reason: 'Migrated Quest & Boss Bonuses',
+        timestamp: Number(raw.updatedAt) || Date.now(),
+      },
+    ];
+  }
+
+  const bonusXp = bonusLedger.reduce((acc, e) => acc + e.xp, 0);
+  const bonusGold = bonusLedger.reduce((acc, e) => acc + e.gold, 0);
 
   const bossDifficulty = BOSS_DIFFICULTIES[raw.bossDifficulty] ? raw.bossDifficulty : 'adaptive';
 
@@ -488,6 +520,7 @@ export function sanitizeState(raw) {
     rewards,
     rewardRedemptions,
     unlockedAchievements,
+    bonusLedger,
     bonusXp,
     bonusGold,
     deletedIds,

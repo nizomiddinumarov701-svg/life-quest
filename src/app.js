@@ -17,8 +17,10 @@ import {
   computeDerivedState,
   formatDurationShort,
   formatStopwatch,
+  getEffectiveGearXpBonus,
   getLocalDateKey,
   getRewardCooldownInfo,
+  isRedemptionRefundable,
   rollLootChest,
 } from './rpgEngine.js';
 import {
@@ -71,6 +73,46 @@ let modalState = null;
 let timerInterval = null;
 let pushDebounceTimer = null;
 let lastClickPos = { x: null, y: null };
+let localMutationGen = 0;
+let derivedCacheGen = 0;
+let derivedCache = { stateRef: null, dateKey: '', gen: -1, value: null };
+let lastKnownDateKey = getLocalDateKey();
+let lastOpenModalKey = null;
+let lastFocusedBeforeModal = null;
+
+function invalidateDerivedCache() {
+  derivedCacheGen += 1;
+  derivedCache.value = null;
+}
+
+function getDerivedState() {
+  const todayKey = getLocalDateKey();
+  if (
+    derivedCache.value &&
+    derivedCache.stateRef === state &&
+    derivedCache.dateKey === todayKey &&
+    derivedCache.gen === derivedCacheGen
+  ) {
+    return derivedCache.value;
+  }
+  const value = computeDerivedState(state);
+  derivedCache = { stateRef: state, dateKey: todayKey, gen: derivedCacheGen, value };
+  return value;
+}
+
+function appendBonusLedgerEntry({ id, xp = 0, gold = 0, reason = 'Bonus' }) {
+  if (!Array.isArray(state.bonusLedger)) state.bonusLedger = [];
+  if (state.bonusLedger.some((e) => e && e.id === id)) return;
+  state.bonusLedger.push({
+    id,
+    xp: Math.max(0, Math.round(Number(xp) || 0)),
+    gold: Math.max(0, Math.round(Number(gold) || 0)),
+    reason,
+    timestamp: Date.now(),
+  });
+  state.bonusXp = state.bonusLedger.reduce((acc, e) => acc + (Number(e.xp) || 0), 0);
+  state.bonusGold = state.bonusLedger.reduce((acc, e) => acc + (Number(e.gold) || 0), 0);
+}
 
 const syncRuntime = {
   status: 'idle', // 'idle' | 'syncing' | 'synced' | 'offline' | 'error'
@@ -145,6 +187,8 @@ function persistState({ deletedId = null } = {}) {
     state.deletedIds[deletedId] = Date.now();
   }
   state.updatedAt = Date.now();
+  localMutationGen += 1;
+  invalidateDerivedCache();
   saveState(state);
 
   if (isCloudSyncConnected()) {
@@ -156,6 +200,7 @@ function persistState({ deletedId = null } = {}) {
 
 function persistTimer(nextTimer) {
   activeTimer = nextTimer;
+  localMutationGen += 1;
   syncMeta.activeTimerUpdatedAt = Date.now();
   saveActiveTimer(activeTimer);
   if (isCloudSyncConnected()) {
@@ -215,6 +260,7 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
 
   try {
     if (syncMeta.dirty) {
+      const pushStartGen = localMutationGen;
       // Pull latest remote Gist first and merge cleanly so neither PC nor Phone overwrites the other
       let remoteVersion = syncMeta.version;
       try {
@@ -224,6 +270,7 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
           const remoteTimerTs = Number(latest.data.activeTimerUpdatedAt) || 0;
           if (remoteVersion > syncMeta.version || remoteTimerTs > syncMeta.activeTimerUpdatedAt) {
             state = mergeStates(state, latest.data.state);
+            invalidateDerivedCache();
             saveState(state);
             applyRemoteTimer(latest.data.activeTimer, remoteTimerTs);
           }
@@ -248,7 +295,9 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
 
       syncMeta.version = Number(res.data && res.data.version) || nextVersion;
       if (res.data && res.data.gistUrl) syncMeta.gistUrl = res.data.gistUrl;
-      syncMeta.dirty = false;
+      // Keep dirty=true if the user made another edit while this network push was in flight!
+      const mutatedDuringPush = localMutationGen !== pushStartGen;
+      syncMeta.dirty = mutatedDuringPush;
       syncMeta.lastSyncedAt = Date.now();
       saveSyncMeta(syncMeta);
       syncRuntime.status = 'synced';
@@ -256,6 +305,9 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
         showToast({ icon: '☁️', title: 'Synced to GitHub!', subtitle: 'Your private Gist vault is up to date.' });
       }
       render();
+      if (mutatedDuringPush) {
+        scheduleCloudPush(350);
+      }
       return;
     }
 
@@ -277,9 +329,11 @@ async function syncWithCloud({ forcePull = false, manual = false } = {}) {
         } else {
           state = mergeStates(state, res.data.state);
         }
+        invalidateDerivedCache();
         saveState(state);
         applyRemoteTimer(res.data.activeTimer, remoteTimerTs);
         syncMeta.version = remoteVersion;
+        applyAutoStreakShieldIfNeeded();
       }
       saveSyncMeta(syncMeta);
       syncRuntime.status = 'synced';
@@ -371,7 +425,13 @@ function applyAutoStreakShieldIfNeeded() {
   const available = Math.max(0, purchased - used);
   if (available <= 0) return false;
 
-  const datesToShield = computeAutoShieldDates(state.sessions, state.shieldedDates, available);
+  const datesToShield = computeAutoShieldDates(
+    state.sessions,
+    state.shieldedDates,
+    available,
+    Date.now(),
+    state.shieldPurchases || []
+  );
   if (datesToShield.length === 0) return false;
 
   if (!Array.isArray(state.shieldedDates)) state.shieldedDates = [];
@@ -387,6 +447,30 @@ function applyAutoStreakShieldIfNeeded() {
     tone: 'gold',
   });
   return true;
+}
+
+function notifySprintComplete(activityName) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    new Notification('⚡ Focus Sprint Complete!', {
+      body: `${activityName || 'Your Focus Sprint'} finished — hit Finish & Claim for +20% Bonus XP & Gold!`,
+      icon: './icon.svg',
+      tag: 'lifequest-sprint-complete',
+    });
+  } catch {
+    // Some mobile browsers require ServiceWorkerRegistration.showNotification
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready
+        .then((reg) =>
+          reg.showNotification('⚡ Focus Sprint Complete!', {
+            body: `${activityName || 'Your Focus Sprint'} finished — claim your +20% Bonus XP & Gold!`,
+            icon: './icon.svg',
+            tag: 'lifequest-sprint-complete',
+          })
+        )
+        .catch(() => {});
+    }
+  }
 }
 
 function showToast({ icon = '✨', title, subtitle = '', tone = 'default' }) {
@@ -444,7 +528,7 @@ function recordSession({ activityId, durationSeconds, source = 'manual', note = 
   if (!act) return;
 
   const safeSeconds = Math.max(5, Math.round(durationSeconds));
-  const before = computeDerivedState(state);
+  const before = getDerivedState();
   const beforeAct = before.activityStats.find((a) => a.id === activityId);
   const beforeActLevel = beforeAct ? beforeAct.levelInfo.level : 1;
   const beforePlayerLevel = before.playerLevelInfo.level;
@@ -452,13 +536,15 @@ function recordSession({ activityId, durationSeconds, source = 'manual', note = 
 
   const multiplier = before.streak.multiplier;
   const gb = before.gearBonuses;
-  const gearXpInput = {
-    allXpPct: gb.allXpPct,
-    attrXpPct: (gb.attrXp && gb.attrXp[act.attribute]) || 0,
-    sprintBonusPct: gb.sprintBonusPct,
-  };
+  const gearXpInput = getEffectiveGearXpBonus(gb, act);
   const xpEarned = calculateSessionXp(safeSeconds, multiplier, sprintBonus, gearXpInput);
-  const goldEarned = calculateSessionGold(xpEarned, gb.goldPct);
+  // Compute Gold from pre-XP-gear base XP so XP gear and Gold gear do not double-compound
+  const baseXpForGold = calculateSessionXp(safeSeconds, multiplier, sprintBonus, {
+    allXpPct: 0,
+    attrXpPct: 0,
+    sprintBonusPct: gearXpInput.sprintBonusPct,
+  });
+  const goldEarned = calculateSessionGold(baseXpForGold, gb.goldPct);
   const bossHit = calculateBossDamageForSession(safeSeconds, multiplier, gb.bossDmgPct);
 
   const session = {
@@ -477,10 +563,10 @@ function recordSession({ activityId, durationSeconds, source = 'manual', note = 
   state.sessions.push(session);
   persistState();
 
-  let after = computeDerivedState(state);
+  let after = getDerivedState();
   const newBadges = checkAndUnlockAchievements(after);
   if (newBadges.length > 0) {
-    after = computeDerivedState(state);
+    after = getDerivedState();
   }
 
   const afterAct = after.activityStats.find((a) => a.id === activityId);
@@ -730,6 +816,7 @@ function updateLiveTimerTick() {
       subtitle: 'Hit "Finish & Claim" now or keep going in overtime!',
       tone: 'gold',
     });
+    notifySprintComplete(act ? act.name : '');
     const statusEl = document.getElementById('live-timer-status');
     if (statusEl) statusEl.textContent = '🎉 Sprint Complete! +20% Bonus XP & Gold unlocked';
     const barEl = document.querySelector('.active-timer-bar');
@@ -773,17 +860,17 @@ function updateLiveTimerTick() {
     }
   }
   if (xpEl) {
-    const derived = computeDerivedState(state);
+    // O(1) memoized derived lookup — zero per-second recomputation of heatmap/boss/achievements!
+    const derived = getDerivedState();
     const gb = derived.gearBonuses;
-    const gearXpInput = act
-      ? {
-          allXpPct: gb.allXpPct,
-          attrXpPct: (gb.attrXp && gb.attrXp[act.attribute]) || 0,
-          sprintBonusPct: gb.sprintBonusPct,
-        }
-      : null;
+    const gearXpInput = getEffectiveGearXpBonus(gb, act);
     const liveXp = calculateSessionXp(elapsedSec, derived.streak.multiplier, sprintDone, gearXpInput);
-    const liveGold = calculateSessionGold(liveXp, gb.goldPct);
+    const baseXpForGold = calculateSessionXp(elapsedSec, derived.streak.multiplier, sprintDone, {
+      allXpPct: 0,
+      attrXpPct: 0,
+      sprintBonusPct: gearXpInput.sprintBonusPct,
+    });
+    const liveGold = calculateSessionGold(baseXpForGold, gb.goldPct);
     xpEl.textContent = `+${liveXp} XP · +${liveGold}g${sprintDone ? ' ⚡' : ''}`;
   }
   if (act) {
@@ -810,7 +897,7 @@ function stopTimerLoop() {
 }
 
 function claimDailyQuest(questId) {
-  const before = computeDerivedState(state);
+  const before = getDerivedState();
   const quest = before.dailyQuests.find((q) => q.id === questId);
   if (!quest || !quest.completed || quest.claimed) return;
 
@@ -822,13 +909,17 @@ function claimDailyQuest(questId) {
     state.claimedQuests.push(quest.id);
   }
   const goldReward = Math.round(quest.xpReward * 0.3);
-  state.bonusXp = (state.bonusXp || 0) + quest.xpReward;
-  state.bonusGold = (state.bonusGold || 0) + goldReward;
+  appendBonusLedgerEntry({
+    id: `bonus_quest_${quest.id}`,
+    xp: quest.xpReward,
+    gold: goldReward,
+    reason: `Quest: ${quest.title}`,
+  });
   persistState();
 
-  let after = computeDerivedState(state);
+  let after = getDerivedState();
   const newBadges = checkAndUnlockAchievements(after);
-  if (newBadges.length > 0) after = computeDerivedState(state);
+  if (newBadges.length > 0) after = getDerivedState();
 
   if (isFxEnabled()) {
     launchConfetti({
@@ -875,7 +966,7 @@ function claimDailyQuest(questId) {
 }
 
 function claimWeeklyBoss() {
-  const before = computeDerivedState(state);
+  const before = getDerivedState();
   const wb = before.weeklyBoss;
   if (!wb.defeated || wb.claimed) return;
 
@@ -891,12 +982,17 @@ function claimWeeklyBoss() {
     maxHp: wb.maxHp,
     defeatedAt: Date.now(),
   });
-  state.bonusXp = (state.bonusXp || 0) + BOSS_BOUNTY_XP;
+  appendBonusLedgerEntry({
+    id: `bonus_boss_${wb.weekKey}`,
+    xp: BOSS_BOUNTY_XP,
+    gold: 0, // Boss gold is already tallied cleanly via claimedBossWeeks.length * BOSS_BOUNTY_GOLD
+    reason: `Boss Bounty: ${wb.boss.name}`,
+  });
   persistState();
 
-  let after = computeDerivedState(state);
+  let after = getDerivedState();
   const newBadges = checkAndUnlockAchievements(after);
-  if (newBadges.length > 0) after = computeDerivedState(state);
+  if (newBadges.length > 0) after = getDerivedState();
 
   sound.playBossVictory();
   if (isFxEnabled()) launchConfetti({ style: 'boss', count: 150, durationMs: 2800 });
@@ -947,7 +1043,12 @@ function openChestAndReveal(chest) {
   const result = rollLootChest({ tier: chest.tier || 'standard', ownedGearIds });
 
   if (result.isDuplicate) {
-    state.bonusGold = (Number(state.bonusGold) || 0) + result.duplicateGold;
+    appendBonusLedgerEntry({
+      id: `bonus_dup_${chest.id}`,
+      xp: 0,
+      gold: result.duplicateGold,
+      reason: `Dismantled duplicate ${result.gear.name}`,
+    });
   } else {
     state.inventoryGear.push({
       id: generateId('gear'),
@@ -987,8 +1088,39 @@ function openChestAndReveal(chest) {
   render();
 }
 
+function syncModalFocus(modalMount) {
+  const modalKey = modalState
+    ? `${modalState.type}:${modalState.activityId || modalState.rewardId || (modalState.payload && modalState.payload.gear && modalState.payload.gear.id) || ''}`
+    : null;
+
+  if (modalKey && modalKey !== lastOpenModalKey) {
+    if (!lastOpenModalKey && document.activeElement instanceof HTMLElement) {
+      lastFocusedBeforeModal = document.activeElement;
+    }
+    lastOpenModalKey = modalKey;
+    const dialog = modalMount ? modalMount.querySelector('[role="dialog"]') : null;
+    if (dialog) {
+      const target =
+        dialog.querySelector('[autofocus]') ||
+        dialog.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]');
+      if (target instanceof HTMLElement) {
+        requestAnimationFrame(() => target.focus({ preventScroll: true }));
+      }
+    }
+  } else if (!modalKey && lastOpenModalKey) {
+    lastOpenModalKey = null;
+    if (lastFocusedBeforeModal && document.contains(lastFocusedBeforeModal)) {
+      const restore = lastFocusedBeforeModal;
+      lastFocusedBeforeModal = null;
+      requestAnimationFrame(() => restore.focus({ preventScroll: true }));
+    } else {
+      lastFocusedBeforeModal = null;
+    }
+  }
+}
+
 function render() {
-  const derived = computeDerivedState(state);
+  const derived = getDerivedState();
   applyThemeAndAudio(derived);
   updateSyncButtonUi();
   const activityMap = new Map(derived.activityStats.map((a) => [a.id, a]));
@@ -1045,10 +1177,11 @@ function render() {
     }
   }
 
-  // Modal Mount
+  // Modal Mount + Accessible Focus Handling
   const modalMount = document.getElementById('modal-mount');
   if (modalMount) {
     modalMount.innerHTML = renderModal(modalState, state, getSyncInfo(), derived);
+    syncModalFocus(modalMount);
   }
 }
 
@@ -1264,22 +1397,25 @@ document.addEventListener('click', (e) => {
       syncWithCloud({ forcePull: true, manual: true });
       break;
 
-    case 'copy-sync-token': {
-      if (!syncMeta.token) break;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard
-          .writeText(syncMeta.token)
-          .then(() => {
-            showToast({
-              icon: '📋',
-              title: 'Sync Token Copied!',
-              subtitle: 'Paste it into ☁️ Sync on your phone to connect automatically.',
-            });
-          })
-          .catch(() => {
-            showToast({ icon: '⚠️', title: 'Clipboard blocked', subtitle: 'Please copy your token from GitHub.' });
-          });
+    case 'enable-notifications': {
+      if (typeof Notification === 'undefined') {
+        showToast({ icon: '🔕', title: 'Browser notifications not supported here.' });
+        break;
       }
+      if (Notification.permission === 'granted') {
+        showToast({ icon: '🔔', title: 'Sprint Finish Alerts are already ON!' });
+        break;
+      }
+      Notification.requestPermission()
+        .then((perm) => {
+          showToast({
+            icon: perm === 'granted' ? '🔔' : '🔕',
+            title: perm === 'granted' ? 'Sprint Finish Alerts Enabled!' : 'Alerts were not enabled',
+            subtitle: perm === 'granted' ? 'You will be notified when Focus Sprints complete.' : 'You can enable notifications anytime in browser settings.',
+          });
+          render();
+        })
+        .catch(() => {});
       break;
     }
 
@@ -1386,7 +1522,7 @@ document.addEventListener('click', (e) => {
     case 'vault-transfer': {
       const delta = Math.round(Number(trigger.dataset.amount) || 0);
       if (!delta) break;
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       const gold = derived.gold;
       if (delta > 0) {
         const move = Math.min(delta, gold.pocketBalance);
@@ -1411,7 +1547,7 @@ document.addEventListener('click', (e) => {
       const rid = trigger.dataset.id;
       const rew = (state.rewards || []).find((r) => r.id === rid);
       if (!rew) break;
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       const gold = derived.gold;
       const cd = getRewardCooldownInfo(rew, state.rewardRedemptions);
       if (cd.onCooldown) {
@@ -1473,7 +1609,15 @@ document.addEventListener('click', (e) => {
     case 'refund-redemption': {
       const redId = trigger.dataset.id;
       const item = (state.rewardRedemptions || []).find((r) => r.id === redId);
-      if (!item || item.refundable === false) break;
+      if (!item || !isRedemptionRefundable(item)) {
+        showToast({
+          icon: '⏳',
+          title: 'Refund window expired',
+          subtitle: 'Treats can only be refunded within 10 minutes of redeeming.',
+        });
+        render();
+        break;
+      }
       state.rewardRedemptions = state.rewardRedemptions.filter((r) => r.id !== redId);
       persistState({ deletedId: redId });
       showToast({
@@ -1492,7 +1636,7 @@ document.addEventListener('click', (e) => {
 
     case 'select-theme': {
       const themeId = trigger.dataset.themeId;
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       const found = derived.themes.find((t) => t.id === themeId);
       if (!found || !found.unlocked) break;
       state.activeTheme = found.id;
@@ -1521,7 +1665,7 @@ document.addEventListener('click', (e) => {
       const themeId = trigger.dataset.themeId;
       const themeDef = RPG_THEME_MAP[themeId];
       if (!themeDef) break;
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       const existing = derived.themes.find((t) => t.id === themeId);
       if (!existing || existing.unlocked) break;
       if (derived.gold.pocketBalance < themeDef.cost) {
@@ -1560,7 +1704,7 @@ document.addEventListener('click', (e) => {
     }
 
     case 'open-next-chest': {
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       const next = (derived.pendingChests || [])[0];
       if (!next) {
         showToast({ icon: '🎁', title: 'No unopened chests right now', subtitle: 'Level up, slay a boss, or finish 3 Focus Sprints to earn more!' });
@@ -1611,7 +1755,7 @@ document.addEventListener('click', (e) => {
     }
 
     case 'buy-streak-shield': {
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       if (derived.streakShields.available >= STREAK_SHIELD_MAX) {
         showToast({ icon: '❄️', title: `Already holding max ${STREAK_SHIELD_MAX} shields!` });
         break;
@@ -1654,7 +1798,7 @@ document.addEventListener('click', (e) => {
     }
 
     case 'buy-mystery-chest': {
-      const derived = computeDerivedState(state);
+      const derived = getDerivedState();
       if (derived.gold.pocketBalance < MYSTERY_CHEST_COST) {
         showToast({
           icon: '🪙',
@@ -1792,6 +1936,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('input', (e) => {
   if (e.target && e.target.id === 'active-timer-note-input' && activeTimer) {
     activeTimer.note = String(e.target.value || '').slice(0, 120);
+    localMutationGen += 1;
     syncMeta.activeTimerUpdatedAt = Date.now();
     saveActiveTimer(activeTimer);
     if (isCloudSyncConnected()) {
@@ -2049,7 +2194,9 @@ async function handleSyncAuthSubmit({ token }) {
       state = remoteState;
       state.settings = keepSettings;
     }
+    invalidateDerivedCache();
     saveState(state);
+    applyAutoStreakShieldIfNeeded();
 
     const remoteTimerTs = Number(res.activeTimerUpdatedAt) || 0;
     applyRemoteTimer(res.activeTimer, remoteTimerTs);
@@ -2095,14 +2242,28 @@ async function handleSyncAuthSubmit({ token }) {
   }
 }
 
+// Midnight rollover watcher — updates daily quests, streaks & auto-shields if tab stays open past midnight
+function checkMidnightRollover() {
+  const currentKey = getLocalDateKey();
+  if (currentKey === lastKnownDateKey) return;
+  lastKnownDateKey = currentKey;
+  invalidateDerivedCache();
+  applyAutoStreakShieldIfNeeded();
+  render();
+}
+
 // Automatic real-time cloud sync hooks (visibility, focus, online, gentle 30s poll)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && isCloudSyncConnected()) {
-    syncWithCloud({ forcePull: true });
+  if (document.visibilityState === 'visible') {
+    checkMidnightRollover();
+    if (isCloudSyncConnected()) {
+      syncWithCloud({ forcePull: true });
+    }
   }
 });
 
 window.addEventListener('focus', () => {
+  checkMidnightRollover();
   if (isCloudSyncConnected()) {
     syncWithCloud({ forcePull: true });
   }
@@ -2115,6 +2276,7 @@ window.addEventListener('online', () => {
 });
 
 setInterval(() => {
+  checkMidnightRollover();
   if (
     isCloudSyncConnected() &&
     document.visibilityState === 'visible' &&
@@ -2125,13 +2287,39 @@ setInterval(() => {
   }
 }, 30000);
 
-// Keyboard shortcuts
+// Keyboard shortcuts & accessible modal focus trap
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && modalState) {
     modalState = null;
     render();
     return;
   }
+
+  if (e.key === 'Tab' && modalState) {
+    const dialog = document.querySelector('#modal-mount [role="dialog"]');
+    if (dialog) {
+      const focusables = Array.from(
+        dialog.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null);
+      if (focusables.length > 0) {
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+          e.preventDefault();
+          last.focus();
+          return;
+        }
+        if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+          e.preventDefault();
+          first.focus();
+          return;
+        }
+      }
+    }
+  }
+
   const tag = (e.target && e.target.tagName) || '';
   const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   if (e.code === 'Space' && !isTyping && !modalState && activeTimer) {
@@ -2140,6 +2328,24 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+function registerServiceWorker() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  const isSecureContext =
+    window.location.protocol === 'https:' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === 'localhost';
+  if (!isSecureContext) return;
+
+  const register = () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  };
+  if (document.readyState === 'complete') {
+    register();
+  } else {
+    window.addEventListener('load', register, { once: true });
+  }
+}
+
 // Boot
 applyAutoStreakShieldIfNeeded();
 render();
@@ -2147,6 +2353,7 @@ animateViewEntrance();
 ensureTimerLoop();
 initAmbientCanvas();
 initInteractiveCardEffects();
+registerServiceWorker();
 if (isCloudSyncConnected()) {
   syncWithCloud({ forcePull: true });
 }

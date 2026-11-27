@@ -1,32 +1,32 @@
 # LifeQuest — Cozy Modern RPG Life Gamifier
 
-Turn your everyday habits and activities into an RPG adventure. Track exactly how much time you spend on every action, earn XP with streak multipliers, level up each skill independently, complete daily quests, unlock badges, and balance your 5 RPG attributes.
+Turn everyday focus, habits, and projects into a cozy RPG adventure — zero runtime dependencies, offline PWA support, and free PC ↔ Phone sync via a private GitHub Gist.
 
-## Features
+## Highlights
 
-- **Activity & Skill Levels**: Every activity (Coding, Workout, Reading, Music, Cooking, or any custom skill) has its own **Level**, **XP progress bar**, mastery rank (*Novice → Apprentice → Adept → Expert → Master → Grandmaster → Legend*), and **Today / This Week / All-Time** counters.
-- **Live Stopwatch + Quick Manual Log**: Start a live timer (persists across reloads and updates the browser tab title) with real-time XP ticking, or quick-log offline sessions (`+15m`, `+30m`, or custom hours/minutes + notes).
-- **Cozy Modern RPG Gamification**:
-  - **Dynamic Hero Class**: Evolves automatically from your strongest attributes (e.g., *Artificer*, *Astral Monk*, *Cozy Bard*, *Grand Polymath*).
-  - **Weekly Boss Battles**: Deal damage with every minute tracked (with **Focus Crits** on 30m+/60m+ sessions), earn **Boss Trophies**, and tune difficulty (*Adaptive*, *Chill*, *Balanced*, *Hardcore*).
-  - **Gold Coins & Tavern Rewards Shop**: Earn Gold from actions, quests, badges, and boss victories to redeem custom real-life treats and track long-term **Epic Goals**.
-  - **Combo / Secondary Attributes**: Optionally split any activity 70% Primary / 30% Secondary across two RPG stats.
-  - **Daily Quests & Streak Multipliers** (`1.0x` up to `2.0x` XP & Gold) + custom daily side-quests.
-  - **14 Unlockable Achievements & Level-Up Celebrations** with confetti and Web Audio synthesized chimes (toggleable).
-  - **Tiered 5-Axis RPG Attribute Radar Chart** (*Mind*, *Body*, *Craft*, *Social*, *Vitality*) that auto-expands as you level up.
-- **Time & Level Analytics**: Timeframe switcher (*Today*, *Last 7 Days*, *Last 30 Days*, *All Time*), interactive SVG Donut chart, 7-day focus rhythm bar chart, Activity Level Leaderboard, and filterable Action History log.
-- **Local-First & Private**: Saves automatically in your browser (`localStorage`) with **JSON Backup Export & Import**. Zero external runtime dependencies.
+- **Activity & Skill Levels**: Track live timers, **⚡ Focus Sprints** (`25m / 45m / 60m` with `+20%` bonus XP & Gold, live progress bar, inline notes, and browser completion alerts), or quick-log offline sessions.
+- **Cozy RPG Systems**:
+  - **Dynamic Hero Class** & tiered 5-axis **RPG Skill Radar** (*Mind*, *Body*, *Craft*, *Social*, *Vitality*) with optional 70%/30% Secondary Combo attributes.
+  - **Weekly Boss Battles** with Focus Crits (`30m+`), Mega Crits (`60m+`), and collectible **Boss Trophies**.
+  - **🛡️ Loot Chests & Hero Armory**: 16 pieces of Common–Legendary gear across 4 equipment slots (*Weapon*, *Armor*, *Relic*, *Aura*) with passive XP, Gold, Sprint, and Boss DMG buffs + smart duplicate protection.
+  - **🎨 5 Unlockable RPG Visual Themes & Custom Particle FX**: *Twilight Tavern*, *Cyber Neon*, *Sakura Shrine*, *Dragon Forge*, and *Astral Starlight*.
+  - **📅 90-Day Glowing Consistency Heatmap** & **❄️ Streak Freeze Shields** that automatically guard your streak if you miss a day.
+  - **🪙 Tavern Rewards Shop**: Real-life treats with optional **Cooldowns** and an **🏦 Epic Savings Vault** split to protect long-term savings goals.
+- **Local-First, Offline PWA & Free GitHub Gist Sync**:
+  - Works offline on PC and phone (installable via *Add to Home Screen* with a Service Worker).
+  - Optional conflict-free PC ↔ Phone Cloud Sync powered by a **private GitHub Gist** using a **`gist`-only** Personal Access Token.
 
 ## Quick Start
 
 ```bash
-node server.js
+npm start
 ```
 
-Then open [http://127.0.0.1:4173](http://127.0.0.1:4173) in your browser.
+Open [http://127.0.0.1:4173](http://127.0.0.1:4173) in your browser.
 
-## Run Tests
+## Build & Tests
 
 ```bash
-node --test tests/rpgEngine.test.mjs
+npm test
+npm run build
 ```
